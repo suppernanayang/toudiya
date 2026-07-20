@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useFormStatus } from "react-dom";
 import { createResumeFromText, uploadResumeFile } from "./actions";
 
 export function ResumeIntakeTabs() {
@@ -45,7 +46,7 @@ export function ResumeIntakeTabs() {
             required
           />
           <div>
-            <SubmitButton>解析并保存为原始版本</SubmitButton>
+            <SubmitButton pendingText="正在解析，请稍候（AI 提取经历可能需要十几秒）…">解析并保存为原始版本</SubmitButton>
           </div>
         </form>
       ) : (
@@ -74,7 +75,7 @@ export function ResumeIntakeTabs() {
             <span className="text-muted text-xs">支持 .pdf / .docx，解析失败时可改为粘贴文本</span>
           </div>
           <div>
-            <SubmitButton>上传并解析</SubmitButton>
+            <SubmitButton pendingText="正在上传解析，请稍候…">上传并解析</SubmitButton>
           </div>
         </form>
       )}
@@ -104,13 +105,16 @@ function TabButton({
   );
 }
 
-function SubmitButton({ children }: { children: React.ReactNode }) {
+function SubmitButton({ children, pendingText }: { children: React.ReactNode; pendingText: string }) {
+  const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      className="min-h-9 rounded-lg inline-flex items-center px-3 text-sm border border-teal bg-teal text-white"
+      disabled={pending}
+      aria-busy={pending}
+      className="min-h-9 rounded-lg inline-flex items-center px-3 text-sm border border-teal bg-teal text-white disabled:opacity-60 disabled:cursor-not-allowed"
     >
-      {children}
+      {pending ? pendingText : children}
     </button>
   );
 }

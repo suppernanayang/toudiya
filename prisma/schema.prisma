@@ -164,12 +164,19 @@ model ExperienceItem {
   skills         Json?
   metrics        Json?
   evidenceStatus String   @default("needs_confirmation") @map("evidence_status")
+  // 指向"内容有更新，待用户确认"的旧版本经历条目。
+  // 非空 = 这条是某条旧经历的疑似更新版本，两条会在经历库里成组展示，
+  // 等用户选择"保留新的/保留旧的/两条都保留"后才会清空或删除其中一条。
+  duplicateOfId  String?  @map("duplicate_of_id")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   resumeSource ResumeSource?     @relation(fields: [resumeSourceId], references: [id])
   details      ExperienceDetail?
+
+  duplicateOf ExperienceItem?  @relation("ExperienceDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  updates     ExperienceItem[] @relation("ExperienceDuplicate")
 
   @@map("experience_items")
 }

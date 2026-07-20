@@ -5,6 +5,50 @@ import { PageShell } from "@/components/layout/PageShell";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { Tag } from "@/components/ui/Tag";
 import { GeneratePrepButton } from "./GeneratePrepButton";
+import { ExportButtons } from "./ExportButtons";
+
+interface StarAnswer {
+  question: string;
+  situation: string;
+  task: string;
+  action: string;
+  result: string;
+}
+
+function buildPrepMarkdown(params: {
+  company: string;
+  title: string;
+  selfIntro: string | null;
+  keyExperienceBrief: string[];
+  likelyQuestions: string[];
+  starAnswers: StarAnswer[];
+  skillsToReview: string[];
+  questionsToAsk: string[];
+  riskNotes: string[];
+}): string {
+  const lines: string[] = [];
+  lines.push(`# 面试准备 · ${params.company} ${params.title}`, "");
+  lines.push("## 自我介绍草稿", params.selfIntro || "(暂无)", "");
+  lines.push("## 重点经历解释", ...params.keyExperienceBrief.map((i) => `- ${i}`), "");
+  lines.push("## 可能追问", ...params.likelyQuestions.map((i) => `- ${i}`), "");
+  lines.push("## STAR 回答框架");
+  params.starAnswers.forEach((s) => {
+    lines.push(
+      `### ${s.question}`,
+      `- 情境：${s.situation}`,
+      `- 任务：${s.task}`,
+      `- 行动：${s.action}`,
+      `- 结果：${s.result}`,
+      "",
+    );
+  });
+  lines.push("## 需要复习的业务/技能点", ...params.skillsToReview.map((i) => `- ${i}`), "");
+  lines.push("## 反问面试官", ...params.questionsToAsk.map((i) => `- ${i}`), "");
+  if (params.riskNotes.length > 0) {
+    lines.push("## 风险提醒", ...params.riskNotes.map((i) => `- ${i}`), "");
+  }
+  return lines.join("\n");
+}
 
 export default async function InterviewsPage({
   searchParams,
@@ -100,7 +144,23 @@ export default async function InterviewsPage({
                       <List items={preparation.riskNotes as string[]} />
                     </Block>
                   ) : null}
-                  <GeneratePrepButton jobId={selectedJob.id} />
+                  <div className="flex flex-wrap gap-2">
+                    <ExportButtons
+                      content={buildPrepMarkdown({
+                        company: selectedJob.company,
+                        title: selectedJob.title,
+                        selfIntro: preparation.selfIntro,
+                        keyExperienceBrief: (preparation.keyExperienceBrief as string[] | null) || [],
+                        likelyQuestions: (preparation.likelyQuestions as string[] | null) || [],
+                        starAnswers: (preparation.starAnswers as StarAnswer[] | null) || [],
+                        skillsToReview: (preparation.skillsToReview as string[] | null) || [],
+                        questionsToAsk: (preparation.questionsToAsk as string[] | null) || [],
+                        riskNotes: (preparation.riskNotes as string[] | null) || [],
+                      })}
+                      filename={`面试准备-${selectedJob.company}-${selectedJob.title}.md`}
+                    />
+                    <GeneratePrepButton jobId={selectedJob.id} />
+                  </div>
                 </div>
               )}
             </div>

@@ -79,8 +79,8 @@ const VERSION_TYPE_LABEL: Record<string, string> = {
 
 export function ReviewDeskClient({ queue, detail }: { queue: QueueItem[]; detail: ReviewDetail | null }) {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[minmax(280px,380px)_minmax(420px,1fr)] gap-4.5 items-start">
-      <section className="bg-surface border border-line rounded-lg shadow-[var(--shadow-panel)]">
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(280px,380px)_minmax(0,1fr)] gap-4.5 items-start">
+      <section className="min-w-0 bg-surface border border-line rounded-lg shadow-[var(--shadow-panel)]">
         <div className="px-4 pt-4 pb-3 border-b border-line">
           <h2 className="m-0 text-base font-semibold">岗位队列</h2>
           <span className="text-muted text-sm">按导入时间排序</span>
@@ -99,8 +99,8 @@ export function ReviewDeskClient({ queue, detail }: { queue: QueueItem[]; detail
                   className={`block border-b border-line last:border-b-0 px-4 py-3.5 text-left ${active ? "bg-surface-2" : ""}`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <strong className="text-sm overflow-wrap-anywhere">
+                    <div className="min-w-0">
+                      <strong className="text-sm [overflow-wrap:anywhere]">
                         {item.company} · {item.title}
                       </strong>
                       <div className="text-muted text-sm mt-1">{item.city || "城市待补充"}</div>
@@ -173,9 +173,9 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
   const decisionInfo = DECISION_LABEL[detail.decision] || DECISION_LABEL.undecided;
 
   return (
-    <section className="bg-surface border border-line rounded-lg shadow-[var(--shadow-panel)] grid">
+    <section className="min-w-0 bg-surface border border-line rounded-lg shadow-[var(--shadow-panel)] grid">
       <div className="p-4.5 grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_auto] gap-4 border-b border-line">
-        <div>
+        <div className="min-w-0">
           <h2 className="m-0 text-xl font-semibold leading-snug">
             {detail.company} · {detail.title}
           </h2>
@@ -195,8 +195,8 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
         <div className="mx-4.5 mt-4 border border-rose-soft bg-rose-soft text-rose rounded-lg px-3 py-2 text-sm">{error}</div>
       ) : null}
 
-      <div className="p-4.5 grid grid-cols-1 lg:grid-cols-[minmax(260px,0.9fr)_minmax(340px,1.1fr)] gap-4.5">
-        <div className="grid gap-3 content-start">
+      <div className="p-4.5 grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="min-w-0 grid gap-3 content-start">
           <SectionTitle title="简历版本" subtitle={detail.finalResumeVersionId ? "已设最终版" : "最终版未确认"} />
           <div className="grid gap-2.5">
             {versions.map((v) => (
@@ -212,31 +212,42 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
                 type="button"
                 disabled={isPending}
                 onClick={() => run(() => generateAiDraft(detail.jobId))}
-                className="min-h-9 rounded-lg border border-teal bg-teal text-white text-sm"
+                className="min-h-9 rounded-lg border border-teal bg-teal text-white text-sm disabled:opacity-60"
               >
                 {isPending ? "生成中…" : "生成岗位定制简历（AI 草稿）"}
               </button>
             ) : null}
             <div className="border border-line rounded-lg p-3 grid gap-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <strong className="text-sm">外部回传最终版</strong>
-                <span className="text-muted text-xs">{detail.finalVersion?.versionType === "user_uploaded_final" ? "已上传" : "未上传"}</span>
+                <span className="text-muted text-xs whitespace-nowrap">
+                  {detail.finalVersion?.versionType === "user_uploaded_final" ? "已上传" : "未上传"}
+                </span>
               </div>
-              <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.txt" className="text-sm" />
+              <p className="m-0 text-muted text-xs leading-relaxed">
+                下载当前简历自行修改模板/排版后，选择文件并点击上传，会自动设为本岗位最高优先级候选版本。
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.doc,.docx,.txt"
+                onChange={() => setError(null)}
+                className="text-sm min-w-0"
+              />
               <button
                 type="button"
                 disabled={isPending}
                 onClick={() => {
                   const file = fileInputRef.current?.files?.[0];
                   if (!file) {
-                    setError("请先选择要上传的文件。");
+                    setError("请先在上面选择要上传的文件，再点击这个按钮。");
                     return;
                   }
                   run(() => uploadFinalVersion(detail.reviewItemId, detail.jobId, file));
                 }}
-                className="min-h-8 rounded-lg border border-line text-sm"
+                className="min-h-8 rounded-lg border border-line text-sm disabled:opacity-60"
               >
-                下载后修改模板，再把最终文件上传到这里
+                上传选中的文件
               </button>
             </div>
           </div>
@@ -268,13 +279,13 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
           ) : null}
         </div>
 
-        <div className="grid gap-3 content-start">
+        <div className="min-w-0 grid gap-3 content-start">
           <SectionTitle title="简历预览与编辑" subtitle="保存会生成新的平台内编辑版" />
-          <div className="border border-line rounded-lg bg-[#fbfcfc] overflow-hidden">
-            <div className="min-h-[42px] px-2.5 flex items-center justify-between border-b border-line bg-white">
+          <div className="min-w-0 border border-line rounded-lg bg-[#fbfcfc] overflow-hidden">
+            <div className="min-h-[42px] px-2.5 flex items-center justify-between gap-2 border-b border-line bg-white">
               <Tag variant="teal">{detail.currentVersion ? VERSION_TYPE_LABEL[detail.currentVersion.versionType] : "无版本"}</Tag>
               {detail.currentVersion?.filePath ? (
-                <a href={`/api/files/${encodeURIComponent(detail.currentVersion.filePath)}`} className="text-teal-dark text-xs">
+                <a href={`/api/files/${encodeURIComponent(detail.currentVersion.filePath)}`} className="text-teal-dark text-xs whitespace-nowrap">
                   下载当前版本
                 </a>
               ) : null}
@@ -282,7 +293,7 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
             <textarea
               value={editText}
               onChange={(e) => setEditText(e.target.value)}
-              className="w-full min-h-[280px] p-4 leading-relaxed outline-none"
+              className="w-full min-w-0 min-h-[280px] p-4 leading-relaxed outline-none box-border"
               placeholder={detail.currentVersion ? "" : "还没有简历版本，先在左侧生成 AI 定制简历，或从简历库关联一份基准简历。"}
             />
           </div>
@@ -291,7 +302,7 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
               type="button"
               disabled={isPending || !editText.trim()}
               onClick={() => run(() => saveEditedVersion(detail.reviewItemId, detail.jobId, editText))}
-              className="min-h-9 rounded-lg border border-line text-sm px-3"
+              className="min-h-9 rounded-lg border border-line text-sm px-3 disabled:opacity-60"
             >
               保存为平台内编辑版
             </button>
@@ -299,15 +310,15 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
         </div>
       </div>
 
-      <div className="border-t border-line p-4.5 grid grid-cols-1 lg:grid-cols-[minmax(280px,1fr)_minmax(240px,320px)] gap-4">
-        <div className="grid gap-2">
-          <div className="flex items-center justify-between">
+      <div className="border-t border-line p-4.5 grid grid-cols-1 xl:grid-cols-2 gap-5">
+        <div className="min-w-0 grid gap-2">
+          <div className="flex items-center justify-between gap-2">
             <label className="text-muted text-sm">投递话术</label>
             <button
               type="button"
               disabled={isPending}
               onClick={() => run(() => generateMessageDraft(detail.jobId))}
-              className="text-teal-dark text-xs"
+              className="text-teal-dark text-xs whitespace-nowrap disabled:opacity-60"
             >
               AI 生成话术
             </button>
@@ -316,10 +327,10 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onBlur={() => run(() => updateApplicationMessage(detail.reviewItemId, message, detail.jobId))}
-            className="min-h-28 border border-line rounded-lg bg-white p-3 leading-relaxed"
+            className="min-w-0 min-h-28 border border-line rounded-lg bg-white p-3 leading-relaxed box-border"
           />
         </div>
-        <div className="grid gap-2.5 content-start">
+        <div className="min-w-0 grid gap-2.5 content-start">
           <Row label="最终简历" value={detail.finalVersion ? VERSION_TYPE_LABEL[detail.finalVersion.versionType] : "未设置"} />
           <Row label="待确认事实" value={`${detail.aiDraftVersion?.pendingConfirmations.length || 0} 项`} warn={(detail.aiDraftVersion?.pendingConfirmations.length || 0) > 0} />
           <button
@@ -329,7 +340,7 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
               detail.currentSelectedResumeVersionId &&
               run(() => setFinalVersion(detail.reviewItemId, detail.currentSelectedResumeVersionId!, detail.jobId))
             }
-            className="min-h-9 rounded-lg border border-[#f3d38a] bg-amber-soft text-[#7c3b07] text-sm"
+            className="min-h-9 rounded-lg border border-[#f3d38a] bg-amber-soft text-[#7c3b07] text-sm disabled:opacity-60"
           >
             设为最终投递版
           </button>
@@ -338,7 +349,7 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
               type="button"
               disabled={isPending}
               onClick={() => run(() => decideReviewItem(detail.reviewItemId, detail.jobId, "apply"))}
-              className="min-h-9 rounded-lg border border-teal bg-teal text-white text-sm"
+              className="min-h-9 rounded-lg border border-teal bg-teal text-white text-sm disabled:opacity-60"
             >
               投递
             </button>
@@ -346,7 +357,7 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
               type="button"
               disabled={isPending}
               onClick={() => run(() => decideReviewItem(detail.reviewItemId, detail.jobId, "pause"))}
-              className="min-h-9 rounded-lg border border-line text-sm"
+              className="min-h-9 rounded-lg border border-line text-sm disabled:opacity-60"
             >
               暂缓
             </button>
@@ -354,7 +365,7 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
               type="button"
               disabled={isPending}
               onClick={() => run(() => decideReviewItem(detail.reviewItemId, detail.jobId, "skip"))}
-              className="min-h-9 rounded-lg border border-line text-sm"
+              className="min-h-9 rounded-lg border border-line text-sm disabled:opacity-60"
             >
               不投
             </button>
@@ -386,7 +397,7 @@ function VersionCard({
   return (
     <div className={`border rounded-lg p-3 grid gap-2 bg-white ${active ? "border-teal bg-[#f0faf6]" : "border-line"}`}>
       <div className="flex items-center justify-between gap-2">
-        <strong className="text-sm overflow-wrap-anywhere">{version.versionName}</strong>
+        <strong className="text-sm [overflow-wrap:anywhere]">{version.versionName}</strong>
         <span className="text-muted text-xs whitespace-nowrap">{version.role || (active ? "当前" : "")}</span>
       </div>
       <div className="flex flex-wrap gap-1.5">

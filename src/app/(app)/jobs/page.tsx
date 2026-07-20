@@ -4,6 +4,8 @@ import { PageShell } from "@/components/layout/PageShell";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { Tag, TagVariant } from "@/components/ui/Tag";
 import { createJobFromText, analyzeJobFormAction } from "./actions";
+import { JobSubmitButton } from "./JobSubmitButton";
+import { AnalyzeLinkButton } from "./AnalyzeLinkButton";
 
 const STATUS_LABEL: Record<string, { label: string; variant: TagVariant }> = {
   imported: { label: "待分析", variant: "default" },
@@ -57,9 +59,7 @@ export default async function JobsPage({
             className="min-h-40 border border-line rounded-lg bg-white p-3 leading-relaxed"
           />
           <div>
-            <button type="submit" className="min-h-9 rounded-lg inline-flex items-center px-3 text-sm border border-teal bg-teal text-white">
-              保存并分析
-            </button>
+            <JobSubmitButton />
           </div>
         </form>
       </Panel>
@@ -111,9 +111,7 @@ export default async function JobsPage({
                     ) : (
                       <form action={analyzeJobFormAction}>
                         <input type="hidden" name="jobId" value={job.id} />
-                        <button type="submit" className="text-teal-dark text-sm underline-offset-2 hover:underline">
-                          {job.jdRawText ? "开始分析" : "先补充 JD 正文"}
-                        </button>
+                        <AnalyzeLinkButton hasJd={Boolean(job.jdRawText)} />
                       </form>
                     )}
                   </div>

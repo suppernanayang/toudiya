@@ -7,29 +7,24 @@ import { DEFAULT_USER_ID } from "@/lib/current-user";
 import { saveResumeFile } from "@/lib/storage";
 import { parseResumeFile } from "@/lib/document-parser";
 import { extractResumeExperience } from "@/lib/llm";
+import { saveExtractedExperienceItem } from "@/lib/experience";
 
 async function extractAndSaveExperience(resumeSourceId: string, resumeText: string) {
   if (!resumeText.trim()) return { ok: true as const };
   try {
     const { envelope } = await extractResumeExperience(resumeText);
+    let created = 0;
+    let skippedDuplicate = 0;
+    let flaggedUpdate = 0;
     for (const item of envelope.result) {
-      await prisma.experienceItem.create({
-        data: {
-          userId: DEFAULT_USER_ID,
-          resumeSourceId,
-          experienceType: item.experienceType,
-          title: item.title,
-          organization: item.organization || null,
-          role: item.role || null,
-          startDate: item.startDate || null,
-          endDate: item.endDate || null,
-          summary: item.summary,
-          tags: item.tags,
-          skills: item.skills,
-          evidenceStatus: item.evidenceStatus,
-        },
-      });
+      const outcome = await saveExtractedExperienceItem(resumeSourceId, item);
+      if (outcome === "created") created += 1;
+      else if (outcome === "skipped_duplicate") skippedDuplicate += 1;
+      else flaggedUpdate += 1;
     }
+    console.log(
+      `[resumes] 经历提取完成：新增 ${created} 条，跳过完全重复 ${skippedDuplicate} 条，标记待确认更新 ${flaggedUpdate} 条`,
+    );
     return { ok: true as const };
   } catch (error) {
     console.error("[resumes] 经历提取失败：", error);

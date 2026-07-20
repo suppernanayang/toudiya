@@ -5,7 +5,7 @@ import { promises as fs } from "fs";
 import { PrismaClient } from "../src/generated/prisma";
 
 const ROOT = path.join(__dirname, "..");
-const SMOKE_PORT = 4399;
+const DEFAULT_PORT = 3000;
 
 interface CheckResult {
   name: string;
@@ -102,31 +102,48 @@ function waitForServerReady(port: number, timeoutMs: number): Promise<boolean> {
 }
 
 async function checkAppBoots() {
-  const child = spawn("npm", ["run", "dev", "--", "-p", String(SMOKE_PORT)], {
+  // Next.js 不允许对同一个项目目录同时跑两个开发服务器实例（哪怕端口不同），
+  // 所以如果本机已经有一个 dev server 在跑（比如你自己开着 npm run dev 在浏览），
+  // 就直接对它做检查，不再另起一个，避免冲突导致误报失败。
+  const alreadyRunning = await waitForServerReady(DEFAULT_PORT, 1500);
+
+  if (alreadyRunning) {
+    record("应用启动", true, `检测到已有开发服务器在 http://localhost:${DEFAULT_PORT} 运行，直接使用它`);
+    await checkPages(DEFAULT_PORT);
+    return;
+  }
+
+  const child = spawn("npm", ["run", "dev", "--", "-p", String(DEFAULT_PORT)], {
     cwd: ROOT,
     stdio: "ignore",
     env: process.env,
   });
 
   try {
-    const ready = await waitForServerReady(SMOKE_PORT, 30000);
+    const ready = await waitForServerReady(DEFAULT_PORT, 30000);
     if (!ready) {
-      record("应用启动", false, `等待 30 秒后仍无法访问 http://localhost:${SMOKE_PORT}/dashboard`);
+      record("应用启动", false, `等待 30 秒后仍无法访问 http://localhost:${DEFAULT_PORT}/dashboard`);
       return;
     }
-    record("应用启动", true, "开发服务器已就绪");
-
-    const res = await fetch(`http://localhost:${SMOKE_PORT}/dashboard`);
-    record("首页可访问（/dashboard）", res.status === 200, `HTTP ${res.status}`);
-
-    const jobsRes = await fetch(`http://localhost:${SMOKE_PORT}/jobs`);
-    record("岗位池页面可访问（/jobs）", jobsRes.status === 200, `HTTP ${jobsRes.status}`);
-
-    const reviewRes = await fetch(`http://localhost:${SMOKE_PORT}/review`);
-    record("审核台页面可访问（/review）", reviewRes.status === 200, `HTTP ${reviewRes.status}`);
+    record("应用启动", true, "临时启动的开发服务器已就绪");
+    await checkPages(DEFAULT_PORT);
   } finally {
     child.kill("SIGTERM");
   }
+}
+
+async function checkPages(port: number) {
+  const res = await fetch(`http://localhost:${port}/dashboard`);
+  record("首页可访问（/dashboard）", res.status === 200, `HTTP ${res.status}`);
+
+  const jobsRes = await fetch(`http://localhost:${port}/jobs`);
+  record("岗位池页面可访问（/jobs）", jobsRes.status === 200, `HTTP ${jobsRes.status}`);
+
+  const reviewRes = await fetch(`http://localhost:${port}/review`);
+  record("审核台页面可访问（/review）", reviewRes.status === 200, `HTTP ${reviewRes.status}`);
+
+  const experiencesRes = await fetch(`http://localhost:${port}/experiences`);
+  record("经历库页面可访问（/experiences）", experiencesRes.status === 200, `HTTP ${experiencesRes.status}`);
 }
 
 async function main() {

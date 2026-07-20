@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Tag, TagVariant } from "@/components/ui/Tag";
+import { EXPERIENCE_TYPE_LABEL } from "@/lib/experience-categories";
 import { deleteExperienceItem, updateExperienceItem } from "./actions";
 
 export interface ExperienceItemData {
@@ -17,17 +18,6 @@ export interface ExperienceItemData {
   evidenceStatus: string;
   resumeSourceName: string | null;
 }
-
-const TYPE_LABEL: Record<string, string> = {
-  education: "教育经历",
-  internship: "实习经历",
-  project: "项目经历",
-  campus: "校园经历",
-  work: "工作经历",
-  certificate: "证书",
-  award: "奖项",
-  portfolio: "作品",
-};
 
 const EVIDENCE_LABEL: Record<string, { label: string; variant: TagVariant }> = {
   confirmed: { label: "已确认", variant: "green" },
@@ -113,7 +103,7 @@ export function ExperienceCard({ item }: { item: ExperienceItemData }) {
         <Tag variant={evidence.variant}>{evidence.label}</Tag>
       </div>
       <span className="text-muted text-xs">
-        {TYPE_LABEL[item.experienceType] || item.experienceType}
+        {EXPERIENCE_TYPE_LABEL[item.experienceType] || item.experienceType}
         {item.organization ? ` · ${item.organization}` : ""}
         {item.startDate || item.endDate ? ` · ${item.startDate || "?"} - ${item.endDate || "?"}` : ""}
       </span>

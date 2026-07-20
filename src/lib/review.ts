@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db";
 import { DEFAULT_USER_ID } from "@/lib/current-user";
+import { EXPERIENCE_CATEGORIES } from "@/lib/experience-categories";
 
 const DEFAULT_SESSION_NAME = "常规审核";
 
@@ -36,7 +37,7 @@ async function pickBaseResumeVersionId(roleType: string | null | undefined) {
 
   const normalizedRole = (roleType || "").trim();
 
-  let picked =
+  const picked =
     (normalizedRole &&
       sources.find(
         (s) =>
@@ -80,14 +81,31 @@ export async function buildExperienceSummaryText(): Promise<string> {
 
   if (items.length === 0) return "(经历库暂无内容)";
 
-  return items
-    .map((item) => {
-      const period = [item.startDate, item.endDate].filter(Boolean).join(" - ");
-      return `- [${item.experienceType}] ${item.title}${item.organization ? `（${item.organization}）` : ""}${
-        period ? ` ${period}` : ""
-      }：${item.summary || "(暂无描述)"} | 证据状态：${item.evidenceStatus}`;
-    })
-    .join("\n");
+  const formatItem = (item: (typeof items)[number]) => {
+    const period = [item.startDate, item.endDate].filter(Boolean).join(" - ");
+    const skillsText =
+      item.experienceType === "skill" && Array.isArray(item.skills) && item.skills.length > 0
+        ? `技能关键词：${(item.skills as string[]).join("、")}`
+        : item.summary || "(暂无描述)";
+    return `- ${item.title}${item.organization ? `（${item.organization}）` : ""}${
+      period ? ` ${period}` : ""
+    }：${skillsText} | 证据状态：${item.evidenceStatus}`;
+  };
+
+  // 按分类分组，让 AI 更容易对齐简历的分区结构，而不是拿到一整段拍平的经历列表。
+  const sections = EXPERIENCE_CATEGORIES.map((category) => {
+    const categoryItems = items.filter((item) => category.types.includes(item.experienceType as never));
+    if (categoryItems.length === 0) return null;
+    return `【${category.label}】\n${categoryItems.map(formatItem).join("\n")}`;
+  }).filter(Boolean);
+
+  const categorizedTypes = new Set(EXPERIENCE_CATEGORIES.flatMap((c) => c.types as string[]));
+  const uncategorized = items.filter((item) => !categorizedTypes.has(item.experienceType));
+  if (uncategorized.length > 0) {
+    sections.push(`【其他】\n${uncategorized.map(formatItem).join("\n")}`);
+  }
+
+  return sections.join("\n\n");
 }
 
 export async function getReviewQueue() {

@@ -19,12 +19,14 @@ datasource db {
 // ---------------------------------------------------------------------------
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String?  @unique
-  phone     String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id         String   @id @default(cuid())
+  name       String
+  email      String?  @unique
+  phone      String?
+  // 简历 PDF 用的证件照，本地文件路径（storage/attachments/ 下）。可选，不放照片时留空。
+  avatarPath String?  @map("avatar_path")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
   profile               UserProfile?
   llmSetting            LlmSetting?

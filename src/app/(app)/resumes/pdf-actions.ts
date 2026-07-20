@@ -1,5 +1,6 @@
 "use server";
 
+import path from "path";
 import { prisma } from "@/lib/db";
 import { DEFAULT_USER_ID } from "@/lib/current-user";
 import { saveExportFile } from "@/lib/storage";
@@ -29,6 +30,7 @@ export async function exportResumeVersionPdf(versionId: string): Promise<ExportP
     city: targetCities[0] || null,
     email: user?.email || null,
     phone: user?.phone || null,
+    avatarAbsolutePath: user?.avatarPath ? path.join(process.cwd(), user.avatarPath) : null,
     contentText: version.contentText,
   });
 

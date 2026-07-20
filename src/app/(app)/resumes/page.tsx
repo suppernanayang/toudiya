@@ -60,6 +60,7 @@ export default async function ResumesPage({
           initialName={user?.name === "我" ? "" : user?.name || ""}
           initialEmail={user?.email || ""}
           initialPhone={user?.phone || ""}
+          avatarUrl={user?.avatarPath ? `/api/files/${encodeURIComponent(user.avatarPath)}` : null}
         />
       </Panel>
 

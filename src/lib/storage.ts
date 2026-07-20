@@ -96,3 +96,27 @@ async function fileExists(filePath: string): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * 保存用户证件照等通用附件，存进 storage/attachments/。
+ * 每个用户的证件照直接用固定文件名覆盖旧的，不需要历史留痕
+ * （证件照不是简历版本，不属于"版本留痕"规则约束的对象）。
+ */
+export async function saveAttachmentFile(params: {
+  userId: string;
+  kind: string;
+  ext: string;
+  content: Buffer;
+}): Promise<{ relativePath: string; absolutePath: string }> {
+  const dir = path.join(STORAGE_ROOT, "attachments");
+  await fs.mkdir(dir, { recursive: true });
+
+  const ext = params.ext.replace(/^\./, "");
+  const filename = `${sanitizeSegment(params.userId)}_${sanitizeSegment(params.kind)}.${ext}`;
+  const absolutePath = path.join(dir, filename);
+
+  await fs.writeFile(absolutePath, params.content);
+
+  const relativePath = path.relative(process.cwd(), absolutePath);
+  return { relativePath, absolutePath };
+}

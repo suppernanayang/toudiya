@@ -1,5 +1,5 @@
 import React from "react";
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer";
 import type { ParsedResume } from "./parse-resume-content";
 
 const COLORS = {
@@ -9,6 +9,10 @@ const COLORS = {
   line: "#d8e3df",
 };
 
+// 1 寸证件照标准比例（2.5cm × 3.5cm，约等于 295×413px），换算成 PDF 里的点数。
+const AVATAR_WIDTH = 70;
+const AVATAR_HEIGHT = Math.round((70 * 413) / 295); // ≈ 98
+
 const styles = StyleSheet.create({
   page: {
     fontFamily: "NotoSansSC",
@@ -17,6 +21,22 @@ const styles = StyleSheet.create({
     paddingTop: 36,
     paddingBottom: 36,
     paddingHorizontal: 40,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  headerText: {
+    flexGrow: 1,
+    flexShrink: 1,
+    paddingRight: 16,
+  },
+  avatar: {
+    width: AVATAR_WIDTH,
+    height: AVATAR_HEIGHT,
+    objectFit: "cover",
+    borderRadius: 2,
   },
   name: {
     fontSize: 22,
@@ -31,11 +51,11 @@ const styles = StyleSheet.create({
   contactRow: {
     fontSize: 9.5,
     color: COLORS.muted,
-    marginBottom: 14,
   },
   headerDivider: {
     borderBottomWidth: 1.5,
     borderBottomColor: COLORS.accent,
+    marginTop: 14,
     marginBottom: 14,
   },
   section: {
@@ -97,16 +117,25 @@ export interface ResumePdfData {
   name: string;
   subtitle?: string;
   contactLine?: string;
+  avatarPath?: string | null;
   resume: ParsedResume;
 }
 
-export function ResumeDocument({ name, subtitle, contactLine, resume }: ResumePdfData) {
+export function ResumeDocument({ name, subtitle, contactLine, avatarPath, resume }: ResumePdfData) {
   return (
     <Document title={`${name}的简历`}>
       <Page size="A4" style={styles.page}>
-        <Text style={styles.name}>{name || "未填写姓名"}</Text>
-        {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
-        {contactLine ? <Text style={styles.contactRow}>{contactLine}</Text> : null}
+        <View style={styles.headerRow}>
+          <View style={styles.headerText}>
+            <Text style={styles.name}>{name || "未填写姓名"}</Text>
+            {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
+            {contactLine ? <Text style={styles.contactRow}>{contactLine}</Text> : null}
+          </View>
+          {avatarPath ? (
+            // eslint-disable-next-line jsx-a11y/alt-text -- 这是 @react-pdf/renderer 的 Image 组件，不是 HTML <img>，没有 alt 属性
+            <Image style={styles.avatar} src={avatarPath} />
+          ) : null}
+        </View>
         <View style={styles.headerDivider} />
 
         {resume.sections.map((section, sIdx) => (

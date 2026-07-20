@@ -5,20 +5,42 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { DEFAULT_USER_ID } from "@/lib/current-user";
-import { saveResumeFile } from "@/lib/storage";
+import { saveResumeFile, saveAttachmentFile } from "@/lib/storage";
 import { parseResumeFile } from "@/lib/document-parser";
 import { extractResumeExperience } from "@/lib/llm";
 import { saveExtractedExperienceItem } from "@/lib/experience";
 
 type ActionResult = { ok: true } | { ok: false; message: string };
 
+const ALLOWED_AVATAR_TYPES = ["jpg", "jpeg", "png"];
+
 export async function updatePersonalInfo(formData: FormData): Promise<ActionResult> {
   const name = String(formData.get("name") || "").trim();
   const email = String(formData.get("email") || "").trim();
   const phone = String(formData.get("phone") || "").trim();
+  const avatarFile = formData.get("avatar");
 
   if (!name) {
     return { ok: false, message: "姓名不能为空，PDF 简历抬头需要用到它。" };
+  }
+
+  let avatarPath: string | undefined;
+  if (avatarFile instanceof File && avatarFile.size > 0) {
+    const ext = avatarFile.name.split(".").pop()?.toLowerCase() || "";
+    if (!ALLOWED_AVATAR_TYPES.includes(ext)) {
+      return { ok: false, message: "证件照只支持 JPG / PNG 格式。" };
+    }
+    if (avatarFile.size > 8 * 1024 * 1024) {
+      return { ok: false, message: "证件照文件太大了（超过 8MB），换一张小一点的图片试试。" };
+    }
+    const buffer = Buffer.from(await avatarFile.arrayBuffer());
+    const saved = await saveAttachmentFile({
+      userId: DEFAULT_USER_ID,
+      kind: "avatar",
+      ext,
+      content: buffer,
+    });
+    avatarPath = saved.relativePath;
   }
 
   await prisma.user.update({
@@ -27,9 +49,16 @@ export async function updatePersonalInfo(formData: FormData): Promise<ActionResu
       name,
       email: email || null,
       phone: phone || null,
+      ...(avatarPath ? { avatarPath } : {}),
     },
   });
 
+  revalidatePath("/resumes");
+  return { ok: true };
+}
+
+export async function removeAvatar(): Promise<ActionResult> {
+  await prisma.user.update({ where: { id: DEFAULT_USER_ID }, data: { avatarPath: null } });
   revalidatePath("/resumes");
   return { ok: true };
 }

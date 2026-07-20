@@ -10,6 +10,7 @@ export interface GenerateResumePdfInput {
   city?: string | null;
   email?: string | null;
   phone?: string | null;
+  avatarAbsolutePath?: string | null;
   contentText: string;
 }
 
@@ -33,6 +34,7 @@ export async function generateResumePdf(input: GenerateResumePdfInput): Promise<
       name: input.name || "未填写姓名",
       subtitle: subtitleParts.join(" · ") || undefined,
       contactLine: contactParts.join("  ·  ") || undefined,
+      avatarPath: input.avatarAbsolutePath || undefined,
       resume: parsed.data,
     }) as React.ReactElement<DocumentProps>,
   );

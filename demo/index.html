@@ -1,0 +1,1986 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>投递鸭 - AI 求职审核台 Demo v2</title>
+    <style>
+      :root {
+        --bg: #f6f8f7;
+        --surface: #ffffff;
+        --surface-2: #eef5f2;
+        --line: #dbe5e0;
+        --text: #18211f;
+        --muted: #65736f;
+        --soft: #8b9894;
+        --teal: #0f766e;
+        --teal-dark: #115e59;
+        --mint: #dff3ec;
+        --duck: #f4c542;
+        --amber: #b45309;
+        --amber-soft: #fff2d1;
+        --blue: #2563eb;
+        --blue-soft: #e8f0ff;
+        --rose: #be123c;
+        --rose-soft: #ffe4e6;
+        --green: #15803d;
+        --shadow: 0 18px 48px rgba(25, 49, 44, 0.08);
+        --radius: 8px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      button,
+      input,
+      textarea,
+      select {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      .app-shell {
+        display: grid;
+        grid-template-columns: 248px minmax(360px, 1fr);
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        background: #101917;
+        color: #edf6f3;
+        padding: 22px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .duck-mark {
+        position: relative;
+        width: 38px;
+        height: 38px;
+        border-radius: 50%;
+        background: var(--duck);
+        box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.1);
+        flex: 0 0 auto;
+      }
+
+      .duck-mark::before {
+        content: "";
+        position: absolute;
+        right: -7px;
+        top: 17px;
+        width: 14px;
+        height: 8px;
+        border-radius: 1px 8px 8px 1px;
+        background: #ef8f2f;
+      }
+
+      .duck-mark::after {
+        content: "";
+        position: absolute;
+        left: 23px;
+        top: 12px;
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: #17201d;
+      }
+
+      .brand-title {
+        display: grid;
+        gap: 3px;
+      }
+
+      .brand-title strong {
+        font-size: 20px;
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      .brand-title span {
+        color: #a9bbb5;
+        font-size: 12px;
+      }
+
+      .nav {
+        display: grid;
+        gap: 6px;
+      }
+
+      .nav button {
+        width: 100%;
+        display: grid;
+        grid-template-columns: 24px 1fr auto;
+        align-items: center;
+        gap: 10px;
+        border: 0;
+        border-radius: var(--radius);
+        padding: 10px 11px;
+        color: #d9e7e2;
+        background: transparent;
+        text-align: left;
+      }
+
+      .nav button.active,
+      .nav button:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: #ffffff;
+      }
+
+      .nav svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+      }
+
+      .badge {
+        min-width: 22px;
+        height: 22px;
+        border-radius: 999px;
+        padding: 0 7px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        background: rgba(244, 197, 66, 0.18);
+        color: #ffe48a;
+      }
+
+      .sidebar-footer {
+        margin-top: auto;
+        padding: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: var(--radius);
+        color: #c7d8d3;
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .sidebar-footer button {
+        width: 100%;
+        margin-top: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.08);
+        color: #ffffff;
+        min-height: 34px;
+      }
+
+      .main {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .topbar {
+        height: 72px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 0 28px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.82);
+        backdrop-filter: blur(18px);
+        position: sticky;
+        top: 0;
+        z-index: 4;
+      }
+
+      .title-block {
+        min-width: 0;
+      }
+
+      .title-block h1 {
+        margin: 0;
+        font-size: 22px;
+        line-height: 1.25;
+        letter-spacing: 0;
+      }
+
+      .title-block p {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .top-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+
+      .btn {
+        min-height: 36px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--surface);
+        color: var(--text);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0 12px;
+        white-space: nowrap;
+      }
+
+      .btn svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .btn.primary {
+        border-color: var(--teal);
+        background: var(--teal);
+        color: #ffffff;
+      }
+
+      .btn.warning {
+        border-color: #f3d38a;
+        background: var(--amber-soft);
+        color: #7c3b07;
+      }
+
+      .content {
+        padding: 24px 28px 28px;
+        display: grid;
+        gap: 18px;
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(140px, 1fr));
+        gap: 14px;
+      }
+
+      .metric {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 16px;
+        box-shadow: var(--shadow);
+      }
+
+      .metric span {
+        display: block;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .metric strong {
+        display: block;
+        margin-top: 8px;
+        font-size: 26px;
+        letter-spacing: 0;
+      }
+
+      .metric small {
+        color: var(--soft);
+      }
+
+      .model-settings {
+        background: #fbfdfc;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 16px;
+        display: grid;
+        grid-template-columns: minmax(240px, 1fr) repeat(4, minmax(150px, 190px));
+        gap: 14px;
+        align-items: end;
+      }
+
+      .model-intro {
+        display: grid;
+        gap: 6px;
+      }
+
+      .model-intro strong {
+        font-size: 16px;
+      }
+
+      .model-intro span,
+      .model-field label {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .model-field {
+        display: grid;
+        gap: 7px;
+      }
+
+      .model-field select {
+        width: 100%;
+        height: 36px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: #ffffff;
+        color: var(--text);
+        padding: 0 10px;
+      }
+
+      .toggle-line {
+        min-height: 36px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .toggle-line input {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--teal);
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(280px, 380px) minmax(420px, 1fr);
+        gap: 18px;
+        align-items: start;
+      }
+
+      .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        min-width: 0;
+      }
+
+      .panel-header {
+        padding: 16px 16px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .panel-header h2 {
+        margin: 0;
+        font-size: 16px;
+        letter-spacing: 0;
+      }
+
+      .panel-header span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .job-list {
+        display: grid;
+      }
+
+      .job-row {
+        border: 0;
+        border-bottom: 1px solid var(--line);
+        background: transparent;
+        padding: 14px 16px;
+        display: grid;
+        gap: 10px;
+        text-align: left;
+      }
+
+      .job-row:last-child {
+        border-bottom: 0;
+      }
+
+      .job-row.active {
+        background: var(--surface-2);
+      }
+
+      .job-topline {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .job-title {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .job-title strong,
+      .version-name strong {
+        overflow-wrap: anywhere;
+      }
+
+      .job-title span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .score {
+        min-width: 48px;
+        height: 28px;
+        border-radius: 999px;
+        background: var(--mint);
+        color: var(--teal-dark);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 13px;
+      }
+
+      .tag-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .tag {
+        min-height: 24px;
+        border-radius: 999px;
+        padding: 4px 9px;
+        font-size: 12px;
+        background: #eef2f7;
+        color: #485568;
+        display: inline-flex;
+        align-items: center;
+      }
+
+      .tag.teal {
+        background: var(--mint);
+        color: var(--teal-dark);
+      }
+
+      .tag.amber {
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+
+      .tag.blue {
+        background: var(--blue-soft);
+        color: var(--blue);
+      }
+
+      .tag.green {
+        background: #e7f6ec;
+        color: var(--green);
+      }
+
+      .tag.rose {
+        background: var(--rose-soft);
+        color: var(--rose);
+      }
+
+      .review {
+        display: grid;
+        grid-template-rows: auto auto auto;
+      }
+
+      .review-hero {
+        padding: 18px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .review-title {
+        min-width: 0;
+      }
+
+      .review-title h2 {
+        margin: 0;
+        font-size: 21px;
+        line-height: 1.25;
+        letter-spacing: 0;
+      }
+
+      .review-title p {
+        margin: 8px 0 0;
+        color: var(--muted);
+      }
+
+      .recommendation {
+        min-width: 132px;
+        border-radius: var(--radius);
+        background: #f8fbfa;
+        border: 1px solid var(--line);
+        padding: 12px;
+        text-align: center;
+      }
+
+      .recommendation strong {
+        display: block;
+        font-size: 28px;
+        color: var(--teal);
+      }
+
+      .recommendation span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .review-grid {
+        padding: 18px;
+        display: grid;
+        grid-template-columns: minmax(260px, 0.9fr) minmax(340px, 1.1fr);
+        gap: 18px;
+      }
+
+      .section {
+        display: grid;
+        gap: 12px;
+        align-content: start;
+        min-width: 0;
+      }
+
+      .section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .section-title h3 {
+        margin: 0;
+        font-size: 14px;
+        color: #31413d;
+        letter-spacing: 0;
+      }
+
+      .section-title span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .version-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .version {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 12px;
+        display: grid;
+        gap: 8px;
+        background: #ffffff;
+      }
+
+      .version.selected {
+        border-color: var(--teal);
+        background: #f0faf6;
+      }
+
+      .version-name {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .version-name span {
+        color: var(--muted);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .diff-list,
+      .risk-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .diff,
+      .risk {
+        border-left: 3px solid var(--teal);
+        background: #f8fbfa;
+        padding: 10px 12px;
+        border-radius: 0 var(--radius) var(--radius) 0;
+      }
+
+      .risk {
+        border-left-color: var(--amber);
+        background: #fffaf0;
+      }
+
+      .diff strong,
+      .risk strong {
+        display: block;
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
+
+      .diff p,
+      .risk p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+
+      .resume-editor {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: #fbfcfc;
+        overflow: hidden;
+      }
+
+      .editor-toolbar {
+        min-height: 42px;
+        padding: 8px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        border-bottom: 1px solid var(--line);
+        background: #ffffff;
+      }
+
+      .icon-actions {
+        display: flex;
+        gap: 6px;
+      }
+
+      .icon-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--radius);
+        border: 1px solid var(--line);
+        background: #ffffff;
+        color: var(--muted);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .icon-btn svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 330px;
+        resize: vertical;
+        border: 0;
+        outline: 0;
+        padding: 16px;
+        color: var(--text);
+        background: transparent;
+        line-height: 1.65;
+      }
+
+      .application-box {
+        border-top: 1px solid var(--line);
+        padding: 18px;
+        display: grid;
+        grid-template-columns: minmax(280px, 1fr) minmax(240px, 320px);
+        gap: 16px;
+      }
+
+      .message-field {
+        display: grid;
+        gap: 8px;
+      }
+
+      .message-field label {
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .message-field textarea {
+        min-height: 112px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: #ffffff;
+      }
+
+      .confirm-box {
+        display: grid;
+        gap: 10px;
+        align-content: start;
+      }
+
+      .confirm-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .confirm-row strong {
+        color: var(--text);
+        text-align: right;
+      }
+
+      .decision-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+
+      .decision-grid .btn {
+        padding: 0 8px;
+      }
+
+      .file-drop {
+        border: 1px dashed #b7c8c3;
+        border-radius: var(--radius);
+        min-height: 64px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--muted);
+        background: #fbfdfc;
+        text-align: center;
+        padding: 12px;
+        font-size: 13px;
+      }
+
+      .hidden-section {
+        display: none;
+      }
+
+      .empty-note {
+        padding: 18px;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      /* ---- v2 新增：入口 Tab、简历卡片、表格化列表、看板 ---- */
+
+      .intake-tabs {
+        padding: 14px 16px 0;
+        display: flex;
+        gap: 8px;
+      }
+
+      .tab-btn {
+        border: 1px solid var(--line);
+        background: #ffffff;
+        color: var(--muted);
+        border-radius: 999px;
+        padding: 7px 16px;
+        font-size: 13px;
+      }
+
+      .tab-btn.active {
+        background: var(--teal);
+        border-color: var(--teal);
+        color: #ffffff;
+      }
+
+      .intake-panel {
+        padding: 16px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .intake-panel.hidden-section {
+        display: none;
+      }
+
+      .intake-panel textarea {
+        min-height: 160px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: #ffffff;
+      }
+
+      .field-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      .field-row input {
+        height: 36px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 0 10px;
+        background: #ffffff;
+        color: var(--text);
+      }
+
+      .file-drop.big {
+        min-height: 120px;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .file-drop.big strong {
+        color: var(--text);
+        font-size: 14px;
+      }
+
+      .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 14px;
+        padding: 4px 16px 16px;
+      }
+
+      .resume-card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: #ffffff;
+        padding: 14px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .resume-card-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .resume-card-head strong {
+        font-size: 14px;
+      }
+
+      .resume-card-meta {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .resume-card-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .link-btn {
+        border: 0;
+        background: transparent;
+        color: var(--teal-dark);
+        font-size: 12px;
+        padding: 0;
+      }
+
+      .table-list {
+        display: grid;
+      }
+
+      .table-row {
+        display: grid;
+        grid-template-columns: 1.6fr 1fr 0.8fr 0.8fr 1fr auto;
+        gap: 12px;
+        align-items: center;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .table-row.head {
+        color: var(--muted);
+        font-size: 12px;
+        background: #fbfdfc;
+      }
+
+      .table-row:last-child {
+        border-bottom: 0;
+      }
+
+      .table-row strong {
+        font-size: 13px;
+        overflow-wrap: anywhere;
+      }
+
+      .kanban {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(180px, 1fr));
+        gap: 12px;
+        padding: 4px 16px 16px;
+        overflow-x: auto;
+      }
+
+      .kanban-col {
+        background: #fbfdfc;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 10px;
+        display: grid;
+        gap: 10px;
+        align-content: start;
+        min-height: 140px;
+      }
+
+      .kanban-col h4 {
+        margin: 0;
+        font-size: 13px;
+        color: var(--muted);
+        font-weight: 600;
+      }
+
+      .kanban-card {
+        background: #ffffff;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 10px;
+        display: grid;
+        gap: 6px;
+        font-size: 12px;
+      }
+
+      .kanban-card strong {
+        font-size: 13px;
+      }
+
+      .exp-card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 14px;
+        display: grid;
+        gap: 8px;
+        background: #ffffff;
+      }
+
+      .interview-block {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 14px 16px;
+        background: #ffffff;
+        display: grid;
+        gap: 8px;
+      }
+
+      .interview-block h3 {
+        margin: 0;
+        font-size: 14px;
+      }
+
+      .interview-block p,
+      .interview-block li {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .quick-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 0 16px 16px;
+      }
+
+      .activity-list {
+        display: grid;
+      }
+
+      .activity-row {
+        display: grid;
+        grid-template-columns: 90px 1fr auto;
+        gap: 10px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--line);
+        font-size: 13px;
+        align-items: center;
+      }
+
+      .activity-row:last-child {
+        border-bottom: 0;
+      }
+
+      .activity-row time {
+        color: var(--soft);
+        font-size: 12px;
+      }
+
+      @media (max-width: 1120px) {
+        .metric-grid {
+          grid-template-columns: repeat(2, minmax(140px, 1fr));
+        }
+
+        .workspace,
+        .review-grid,
+        .application-box,
+        .model-settings,
+        .field-row {
+          grid-template-columns: 1fr;
+        }
+
+        .table-row {
+          grid-template-columns: 1.4fr 1fr 1fr;
+        }
+
+        .table-row span.hide-sm {
+          display: none;
+        }
+
+        .kanban {
+          grid-template-columns: repeat(5, minmax(200px, 1fr));
+        }
+      }
+
+      @media (max-width: 760px) {
+        .app-shell {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          position: static;
+          padding: 16px;
+        }
+
+        .nav {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .sidebar-footer {
+          display: none;
+        }
+
+        .topbar {
+          height: auto;
+          padding: 16px;
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .top-actions {
+          width: 100%;
+          justify-content: flex-start;
+        }
+
+        .content {
+          padding: 16px;
+        }
+
+        .metric-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .review-hero {
+          grid-template-columns: 1fr;
+        }
+
+        .recommendation {
+          text-align: left;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand" aria-label="投递鸭">
+          <div class="duck-mark" aria-hidden="true"></div>
+          <div class="brand-title">
+            <strong>投递鸭</strong>
+            <span>AI 求职审核台</span>
+          </div>
+        </div>
+
+        <nav class="nav" aria-label="主导航">
+          <button type="button" data-view="dashboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 13h8V3H3zM13 21h8v-8h-8zM13 3h8v6h-8zM3 21h8v-4H3z"/></svg>
+            <span>工作台</span>
+            <span></span>
+          </button>
+          <button class="active" type="button" data-view="review">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            <span>审核台</span>
+            <span class="badge">6</span>
+          </button>
+          <button type="button" data-view="resumes">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h6"/></svg>
+            <span>简历库</span>
+            <span></span>
+          </button>
+          <button type="button" data-view="experiences">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            <span>经历库</span>
+            <span></span>
+          </button>
+          <button type="button" data-view="jobs">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M10 6h10M10 12h10M10 18h10"/><path d="M4 6h1M4 12h1M4 18h1"/></svg>
+            <span>岗位池</span>
+            <span class="badge">18</span>
+          </button>
+          <button type="button" data-view="applications">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>
+            <span>投递追踪</span>
+            <span></span>
+          </button>
+          <button type="button" data-view="interviews">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>
+            <span>面试准备</span>
+            <span></span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <strong>模型设置</strong>
+          <br />
+          当前：DeepSeek · 自动备用已开
+          <button type="button" data-view="dashboard">查看设置</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="title-block">
+            <h1>今日投递审核</h1>
+            <p>2026 秋招批次 · 6 个岗位待确认 · 2 项事实待补充</p>
+          </div>
+          <div class="top-actions">
+            <button class="btn" type="button" data-view="dashboard">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+              模型设置
+            </button>
+            <button class="btn" type="button" data-view="jobs">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+              导入岗位
+            </button>
+            <button class="btn primary" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+              生成定制简历
+            </button>
+          </div>
+        </header>
+
+        <!-- ============ 审核台 ============ -->
+        <section class="content" data-page="review">
+          <div class="model-settings" aria-label="模型设置">
+            <div class="model-intro">
+              <strong>本次审核使用的模型</strong>
+              <span>用户可以按任务切换 DeepSeek 或 OpenAI，系统不写死模型。</span>
+            </div>
+            <div class="model-field">
+              <label for="defaultModel">默认模型</label>
+              <select id="defaultModel">
+                <option>DeepSeek · deepseek-chat</option>
+                <option>OpenAI · gpt-4.1</option>
+              </select>
+            </div>
+            <div class="model-field">
+              <label for="resumeModel">简历定制</label>
+              <select id="resumeModel">
+                <option>DeepSeek · deepseek-chat</option>
+                <option>OpenAI · gpt-4.1（未配置额度）</option>
+              </select>
+            </div>
+            <div class="model-field">
+              <label for="jdModel">JD 分析</label>
+              <select id="jdModel">
+                <option>DeepSeek · deepseek-chat</option>
+                <option>OpenAI · gpt-4.1（未配置额度）</option>
+              </select>
+            </div>
+            <label class="toggle-line">
+              <input type="checkbox" checked />
+              自动切换备用模型
+            </label>
+          </div>
+
+          <div class="metric-grid">
+            <div class="metric">
+              <span>待审核岗位</span>
+              <strong>6</strong>
+              <small>今日批次</small>
+            </div>
+            <div class="metric">
+              <span>平均匹配度</span>
+              <strong>82</strong>
+              <small>优先处理 3 个</small>
+            </div>
+            <div class="metric">
+              <span>已生成简历</span>
+              <strong>4</strong>
+              <small>含 1 份外部回传</small>
+            </div>
+            <div class="metric">
+              <span>待确认事实</span>
+              <strong>2</strong>
+              <small>数据不可直接写入</small>
+            </div>
+          </div>
+
+          <div class="workspace">
+            <section class="panel" aria-label="岗位列表">
+              <div class="panel-header">
+                <div>
+                  <h2>岗位队列</h2>
+                  <span>按优先级排序</span>
+                </div>
+                <button class="icon-btn" type="button" aria-label="筛选岗位">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 3H2l8 9.46V19l4 2v-8.54z"/></svg>
+                </button>
+              </div>
+              <div class="job-list">
+                <button class="job-row active" type="button">
+                  <div class="job-topline">
+                    <div class="job-title">
+                      <strong>小红书 · 产品运营实习生</strong>
+                      <span>上海 · 内容生态 · 今日导入</span>
+                    </div>
+                    <span class="score">88</span>
+                  </div>
+                  <div class="tag-row">
+                    <span class="tag teal">推荐投</span>
+                    <span class="tag blue">产品运营版</span>
+                    <span class="tag amber">1 项待确认</span>
+                  </div>
+                </button>
+                <button class="job-row" type="button">
+                  <div class="job-topline">
+                    <div class="job-title">
+                      <strong>得物 · 电商运营管培生</strong>
+                      <span>上海 · 平台运营 · 表格导入</span>
+                    </div>
+                    <span class="score">84</span>
+                  </div>
+                  <div class="tag-row">
+                    <span class="tag teal">推荐投</span>
+                    <span class="tag blue">电商运营版</span>
+                  </div>
+                </button>
+                <button class="job-row" type="button">
+                  <div class="job-topline">
+                    <div class="job-title">
+                      <strong>泡泡玛特 · 用户增长运营</strong>
+                      <span>北京 · 增长策略 · 链接导入</span>
+                    </div>
+                    <span class="score">79</span>
+                  </div>
+                  <div class="tag-row">
+                    <span class="tag amber">谨慎投</span>
+                    <span class="tag">增长经验偏弱</span>
+                  </div>
+                </button>
+                <button class="job-row" type="button">
+                  <div class="job-topline">
+                    <div class="job-title">
+                      <strong>某央企 · 校招综合运营岗</strong>
+                      <span>北京 · 官网网申 · 待补 JD</span>
+                    </div>
+                    <span class="score">72</span>
+                  </div>
+                  <div class="tag-row">
+                    <span class="tag amber">需补材料</span>
+                    <span class="tag">官网填表</span>
+                  </div>
+                </button>
+              </div>
+            </section>
+
+            <section class="panel review" aria-label="审核详情">
+              <div class="review-hero">
+                <div class="review-title">
+                  <h2>小红书 · 产品运营实习生</h2>
+                  <p>JD 强调内容生态、用户洞察、数据复盘，建议基于「产品运营版」生成岗位定制版。</p>
+                  <div class="tag-row" style="margin-top: 12px">
+                    <span class="tag teal">推荐投递</span>
+                    <span class="tag blue">产品运营</span>
+                    <span class="tag amber">转化数据待确认</span>
+                  </div>
+                </div>
+                <div class="recommendation">
+                  <span>匹配度</span>
+                  <strong>88</strong>
+                  <span>优先级 A</span>
+                </div>
+              </div>
+
+              <div class="review-grid">
+                <div class="section">
+                  <div class="section-title">
+                    <h3>简历版本</h3>
+                    <span>最终版未确认</span>
+                  </div>
+                  <div class="version-list">
+                    <div class="version">
+                      <div class="version-name">
+                        <strong>产品运营版 v2</strong>
+                        <span>基准</span>
+                      </div>
+                      <div class="tag-row">
+                        <span class="tag">用户上传</span>
+                        <span class="tag blue">默认映射</span>
+                      </div>
+                    </div>
+                    <div class="version selected">
+                      <div class="version-name">
+                        <strong>小红书产品运营 AI 定制版</strong>
+                        <span>当前</span>
+                      </div>
+                      <div class="tag-row">
+                        <span class="tag teal">AI 草稿</span>
+                        <span class="tag amber">待确认</span>
+                      </div>
+                    </div>
+                    <div class="version">
+                      <div class="version-name">
+                        <strong>外部回传最终版</strong>
+                        <span>未上传</span>
+                      </div>
+                      <div class="file-drop">下载后修改模板，再把最终文件拖到这里</div>
+                    </div>
+                  </div>
+
+                  <div class="section-title">
+                    <h3>修改说明</h3>
+                    <span>3 处关键调整</span>
+                  </div>
+                  <div class="diff-list">
+                    <div class="diff">
+                      <strong>项目顺序调整</strong>
+                      <p>将内容社区运营项目前置，弱化与 JD 相关度较低的校园活动经历。</p>
+                    </div>
+                    <div class="diff">
+                      <strong>关键词强化</strong>
+                      <p>补入用户洞察、内容供给、数据复盘、策略迭代等 JD 高频表达。</p>
+                    </div>
+                    <div class="risk">
+                      <strong>待确认数据</strong>
+                      <p>原简历未写明互动率提升数据，当前只保留“待补充”，不进入最终版。</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="section">
+                  <div class="section-title">
+                    <h3>简历预览与编辑</h3>
+                    <span>平台内编辑版会另存</span>
+                  </div>
+                  <div class="resume-editor">
+                    <div class="editor-toolbar">
+                      <span class="tag teal">AI 定制草稿</span>
+                      <div class="icon-actions">
+                        <button class="icon-btn" type="button" aria-label="下载当前简历">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+                        </button>
+                        <button class="icon-btn" type="button" aria-label="上传外部最终版">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+                        </button>
+                      </div>
+                    </div>
+                    <textarea spellcheck="false">产品运营实习生候选简历节选
+
+内容社区运营项目
+- 围绕年轻用户内容消费场景，参与拆解社区热门内容供给结构，整理 120+ 条竞品内容样本并输出选题标签。
+- 协助搭建内容复盘表，按曝光、互动、收藏、转化线索记录内容表现，推动运营动作从经验判断转向数据复盘。
+- 针对 JD 中强调的用户洞察和策略迭代，建议补充：该项目是否有互动率、留存、转化等可确认数据？
+
+校园新媒体项目
+- 负责账号选题规划和发布节奏维护，结合评论反馈调整内容表达，提高活动报名转化效率。
+- 沉淀选题库、素材库和复盘模板，支持后续活动快速复用。</textarea>
+                  </div>
+                </div>
+              </div>
+
+              <div class="application-box">
+                <div class="message-field">
+                  <label for="message">投递话术</label>
+                  <textarea id="message">您好，我关注到贵团队正在招聘产品运营实习生。我的经历集中在内容社区运营、用户反馈整理和数据复盘，和岗位中提到的内容生态、用户洞察方向较匹配。已附上针对该岗位整理的简历，期待有机会进一步沟通。</textarea>
+                </div>
+                <div class="confirm-box">
+                  <div class="confirm-row">
+                    <span>最终简历</span>
+                    <strong>AI 定制草稿版</strong>
+                  </div>
+                  <div class="confirm-row">
+                    <span>待确认事实</span>
+                    <strong style="color: var(--amber)">1 项</strong>
+                  </div>
+                  <div class="confirm-row">
+                    <span>附件</span>
+                    <strong>简历 DOCX</strong>
+                  </div>
+                  <button class="btn warning" type="button">设为最终投递版</button>
+                  <div class="decision-grid">
+                    <button class="btn primary" type="button">投递</button>
+                    <button class="btn" type="button">暂缓</button>
+                    <button class="btn" type="button">不投</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <!-- ============ 工作台 ============ -->
+        <section class="content hidden-section" data-page="dashboard">
+          <div class="metric-grid">
+            <div class="metric">
+              <span>今日待审核</span>
+              <strong>6</strong>
+              <small>2026 秋招批次</small>
+            </div>
+            <div class="metric">
+              <span>近 7 天投递</span>
+              <strong>11</strong>
+              <small>3 个等待回复</small>
+            </div>
+            <div class="metric">
+              <span>待补充经历</span>
+              <strong>3</strong>
+              <small>影响简历定制质量</small>
+            </div>
+            <div class="metric">
+              <span>待生成面试准备</span>
+              <strong>2</strong>
+              <small>已投递未准备</small>
+            </div>
+          </div>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>快捷入口</h2>
+                <span>三步完成一次投递</span>
+              </div>
+            </div>
+            <div class="quick-actions">
+              <button class="btn primary" type="button" data-view="resumes">① 上传 / 粘贴简历</button>
+              <button class="btn" type="button" data-view="jobs">② 导入 JD 或岗位</button>
+              <button class="btn" type="button" data-view="review">③ 去审核台确认</button>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header"><h2>模型设置</h2><span>用户自行选择</span></div>
+            <div class="model-settings" style="margin: 0 16px 16px; box-shadow: none;">
+              <div class="model-intro">
+                <strong>全局模型策略</strong>
+                <span>当前配置会作为所有 AI 任务的默认值，Key 缺失时该供应商会标注未配置。</span>
+              </div>
+              <div class="model-field">
+                <label for="settingsDefault">默认模型</label>
+                <select id="settingsDefault">
+                  <option>DeepSeek · deepseek-chat</option>
+                  <option>OpenAI · gpt-4.1（未配置额度）</option>
+                </select>
+              </div>
+              <div class="model-field">
+                <label for="settingsFallback">备用模型</label>
+                <select id="settingsFallback">
+                  <option>OpenAI · gpt-4.1（未配置额度）</option>
+                  <option>DeepSeek · deepseek-chat</option>
+                  <option>不启用</option>
+                </select>
+              </div>
+              <div class="model-field">
+                <label for="settingsReview">事实复核</label>
+                <select id="settingsReview">
+                  <option>DeepSeek · deepseek-chat</option>
+                  <option>OpenAI · gpt-4.1（未配置额度）</option>
+                </select>
+              </div>
+              <label class="toggle-line">
+                <input type="checkbox" checked />
+                调用失败时自动切换
+              </label>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header"><h2>最近动态</h2><span>今日</span></div>
+            <div class="activity-list">
+              <div class="activity-row">
+                <time>10:24</time>
+                <span>为「小红书·产品运营实习生」生成 AI 定制简历草稿</span>
+                <span class="tag teal">DeepSeek</span>
+              </div>
+              <div class="activity-row">
+                <time>09:47</time>
+                <span>导入 3 个岗位（表格导入）</span>
+                <span class="tag">岗位池</span>
+              </div>
+              <div class="activity-row">
+                <time>昨天</time>
+                <span>「得物·电商运营管培生」已标记为已投递</span>
+                <span class="tag green">已投递</span>
+              </div>
+              <div class="activity-row">
+                <time>昨天</time>
+                <span>补充「内容社区运营项目」的互动率数据，待确认项已解除</span>
+                <span class="tag amber">经历库</span>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <!-- ============ 简历库 ============ -->
+        <section class="content hidden-section" data-page="resumes">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>新建简历</h2>
+                <span>支持粘贴文本或上传文件，两种方式都会生成一条可追溯的原始版本</span>
+              </div>
+            </div>
+            <div class="intake-tabs">
+              <button class="tab-btn active" type="button" data-intake-tab="paste">粘贴文本</button>
+              <button class="tab-btn" type="button" data-intake-tab="upload">上传 PDF / Word</button>
+            </div>
+            <div class="intake-panel" data-intake-panel="paste">
+              <div class="field-row">
+                <input type="text" placeholder="简历名称，例如：产品运营方向简历" />
+                <input type="text" placeholder="岗位方向标签，例如：产品运营" />
+                <input type="text" placeholder="是否设为该方向默认简历" />
+              </div>
+              <textarea placeholder="将简历文本粘贴到这里，系统会解析出经历条目并标记不确定信息"></textarea>
+              <div>
+                <button class="btn primary" type="button">解析并保存为原始版本</button>
+              </div>
+            </div>
+            <div class="intake-panel hidden-section" data-intake-panel="upload">
+              <div class="field-row">
+                <input type="text" placeholder="简历名称，例如：市场营销方向简历" />
+                <input type="text" placeholder="岗位方向标签，例如：市场营销" />
+                <input type="text" placeholder="是否设为该方向默认简历" />
+              </div>
+              <div class="file-drop big">
+                <strong>拖拽 PDF / Word 简历到这里，或点击选择文件</strong>
+                <span>支持 .pdf / .doc / .docx，解析失败时可改为粘贴文本</span>
+              </div>
+              <div>
+                <button class="btn primary" type="button">上传并解析</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>简历库</h2>
+                <span>所有版本默认留痕，不覆盖旧版</span>
+              </div>
+              <span>共 6 份</span>
+            </div>
+            <div class="card-grid">
+              <div class="resume-card">
+                <div class="resume-card-head">
+                  <strong>产品运营版 v2</strong>
+                  <span class="tag blue">方向默认</span>
+                </div>
+                <div class="resume-card-meta">来源：用户上传 · 更新于 2 天前 · 关联 4 个岗位</div>
+                <div class="resume-card-actions">
+                  <button class="link-btn" type="button">下载</button>
+                  <button class="link-btn" type="button">重命名</button>
+                  <button class="link-btn" type="button">复制为新版本</button>
+                </div>
+              </div>
+              <div class="resume-card">
+                <div class="resume-card-head">
+                  <strong>小红书产品运营 AI 定制版</strong>
+                  <span class="tag teal">AI 草稿</span>
+                </div>
+                <div class="resume-card-meta">来源：AI 生成 · 更新于今天 · 绑定岗位：小红书</div>
+                <div class="resume-card-actions">
+                  <button class="link-btn" type="button">下载</button>
+                  <button class="link-btn" type="button">去审核台</button>
+                </div>
+              </div>
+              <div class="resume-card">
+                <div class="resume-card-head">
+                  <strong>电商运营版 v1</strong>
+                  <span class="tag blue">方向默认</span>
+                </div>
+                <div class="resume-card-meta">来源：用户上传 · 更新于 5 天前 · 关联 2 个岗位</div>
+                <div class="resume-card-actions">
+                  <button class="link-btn" type="button">下载</button>
+                  <button class="link-btn" type="button">重命名</button>
+                </div>
+              </div>
+              <div class="resume-card">
+                <div class="resume-card-head">
+                  <strong>得物电商运营 平台内编辑版</strong>
+                  <span class="tag amber">编辑版</span>
+                </div>
+                <div class="resume-card-meta">来源：平台内编辑 · 更新于昨天 · 绑定岗位：得物</div>
+                <div class="resume-card-actions">
+                  <button class="link-btn" type="button">下载</button>
+                  <button class="link-btn" type="button">去审核台</button>
+                </div>
+              </div>
+              <div class="resume-card">
+                <div class="resume-card-head">
+                  <strong>原始上传简历</strong>
+                  <span class="tag">原始版</span>
+                </div>
+                <div class="resume-card-meta">来源：粘贴文本 · 更新于 12 天前 · 未绑定岗位</div>
+                <div class="resume-card-actions">
+                  <button class="link-btn" type="button">下载</button>
+                  <button class="link-btn" type="button">复制为新版本</button>
+                </div>
+              </div>
+              <div class="resume-card">
+                <div class="resume-card-head">
+                  <strong>得物电商运营 外部回传最终版</strong>
+                  <span class="tag green">用户上传最终版</span>
+                </div>
+                <div class="resume-card-meta">来源：下载后外部修改回传 · 已用于投递</div>
+                <div class="resume-card-actions">
+                  <button class="link-btn" type="button">下载</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <!-- ============ 经历库 ============ -->
+        <section class="content hidden-section" data-page="experiences">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>经历库</h2>
+                <span>把简历背后的细节整理成可复用资产，AI 只能基于这里的内容改写简历</span>
+              </div>
+              <button class="btn" type="button">+ 新增经历</button>
+            </div>
+            <div class="card-grid">
+              <div class="exp-card">
+                <div class="job-topline">
+                  <strong>内容社区运营项目</strong>
+                  <span class="tag amber">1 项待确认</span>
+                </div>
+                <span class="resume-card-meta">项目经历 · 2025.03 - 2025.09</span>
+                <p style="margin:0;color:var(--muted);font-size:13px;line-height:1.6;">背景：拆解社区热门内容供给结构；行动：整理竞品样本、搭建复盘表；结果：待补充互动率/转化数据。</p>
+                <div class="resume-card-actions">
+                  <button class="link-btn" type="button">补充数据</button>
+                  <button class="link-btn" type="button">查看追问草稿</button>
+                </div>
+              </div>
+              <div class="exp-card">
+                <div class="job-topline">
+                  <strong>校园新媒体运营</strong>
+                  <span class="tag green">已确认</span>
+                </div>
+                <span class="resume-card-meta">校园经历 · 2023.09 - 2024.06</span>
+                <p style="margin:0;color:var(--muted);font-size:13px;line-height:1.6;">负责账号选题规划和发布节奏维护，活动报名转化率提升 18%（用户已确认口径）。</p>
+                <div class="resume-card-actions">
+                  <button class="link-btn" type="button">编辑</button>
+                  <button class="link-btn" type="button">查看追问草稿</button>
+                </div>
+              </div>
+              <div class="exp-card">
+                <div class="job-topline">
+                  <strong>某电商平台 运营实习</strong>
+                  <span class="tag amber">信息不完整</span>
+                </div>
+                <span class="resume-card-meta">实习经历 · 2024.07 - 2024.09</span>
+                <p style="margin:0;color:var(--muted);font-size:13px;line-height:1.6;">缺少具体职责描述和成果数据，暂不能用于定制简历，需要用户补充。</p>
+                <div class="resume-card-actions">
+                  <button class="link-btn" type="button">补充信息</button>
+                </div>
+              </div>
+              <div class="exp-card">
+                <div class="job-topline">
+                  <strong>本科 · 市场营销专业</strong>
+                  <span class="tag green">已确认</span>
+                </div>
+                <span class="resume-card-meta">教育经历 · 2022 - 2026</span>
+                <p style="margin:0;color:var(--muted);font-size:13px;line-height:1.6;">核心课程：消费者行为学、市场调研、数据分析基础。</p>
+                <div class="resume-card-actions">
+                  <button class="link-btn" type="button">编辑</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <!-- ============ 岗位池 ============ -->
+        <section class="content hidden-section" data-page="jobs">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>导入岗位</h2>
+                <span>支持粘贴 JD 文本，或用表格批量导入</span>
+              </div>
+            </div>
+            <div class="intake-tabs">
+              <button class="tab-btn active" type="button" data-intake-tab="jd">粘贴 JD</button>
+              <button class="tab-btn" type="button" data-intake-tab="sheet">表格导入</button>
+            </div>
+            <div class="intake-panel" data-intake-panel="jd">
+              <div class="field-row">
+                <input type="text" placeholder="公司，例如：小红书" />
+                <input type="text" placeholder="岗位名称，例如：产品运营实习生" />
+                <input type="text" placeholder="岗位链接（可选）" />
+              </div>
+              <textarea placeholder="粘贴 JD 原文，信息不足时系统会提示需要补充哪些字段"></textarea>
+              <div>
+                <button class="btn primary" type="button">保存并分析</button>
+              </div>
+            </div>
+            <div class="intake-panel hidden-section" data-intake-panel="sheet">
+              <div class="file-drop big">
+                <strong>拖拽 CSV / Excel 岗位表到这里</strong>
+                <span>建议列：公司、岗位名称、岗位链接、城市、JD、来源、备注</span>
+              </div>
+              <div>
+                <button class="btn primary" type="button">上传并导入</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>岗位池</h2>
+                <span>统一管理 JD 文本、岗位链接、表格导入和后续平台/官网来源岗位</span>
+              </div>
+              <span>共 18 个</span>
+            </div>
+            <div class="table-list">
+              <div class="table-row head">
+                <span>公司 / 岗位</span>
+                <span>来源</span>
+                <span>匹配度</span>
+                <span class="hide-sm">状态</span>
+                <span class="hide-sm">推荐简历</span>
+                <span></span>
+              </div>
+              <div class="table-row">
+                <strong>小红书 · 产品运营实习生</strong>
+                <span>JD 粘贴</span>
+                <span class="score" style="min-width:40px;">88</span>
+                <span class="tag teal hide-sm">审核中</span>
+                <span class="tag blue hide-sm">产品运营版</span>
+                <button class="link-btn" type="button" data-view="review">去审核</button>
+              </div>
+              <div class="table-row">
+                <strong>得物 · 电商运营管培生</strong>
+                <span>表格导入</span>
+                <span class="score" style="min-width:40px;">84</span>
+                <span class="tag green hide-sm">已投递</span>
+                <span class="tag blue hide-sm">电商运营版</span>
+                <button class="link-btn" type="button" data-view="applications">查看进度</button>
+              </div>
+              <div class="table-row">
+                <strong>泡泡玛特 · 用户增长运营</strong>
+                <span>链接导入</span>
+                <span class="score" style="min-width:40px;">79</span>
+                <span class="tag amber hide-sm">谨慎投</span>
+                <span class="tag hide-sm">待选简历</span>
+                <button class="link-btn" type="button" data-view="review">去审核</button>
+              </div>
+              <div class="table-row">
+                <strong>某央企 · 校招综合运营岗</strong>
+                <span>官网网申</span>
+                <span class="score" style="min-width:40px;">72</span>
+                <span class="tag amber hide-sm">待补 JD</span>
+                <span class="tag hide-sm">未匹配</span>
+                <button class="link-btn" type="button">补充信息</button>
+              </div>
+              <div class="table-row">
+                <strong>字节跳动 · 用户运营暑期实习</strong>
+                <span>JD 粘贴</span>
+                <span class="score" style="min-width:40px;">-</span>
+                <span class="tag hide-sm">待分析</span>
+                <span class="tag hide-sm">-</span>
+                <button class="link-btn" type="button">开始分析</button>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <!-- ============ 投递追踪 ============ -->
+        <section class="content hidden-section" data-page="applications">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>投递追踪</h2>
+                <span>记录每次投递使用的最终材料、当前状态和下一步动作</span>
+              </div>
+            </div>
+            <div class="kanban">
+              <div class="kanban-col">
+                <h4>待投递</h4>
+                <div class="kanban-card">
+                  <strong>泡泡玛特 · 用户增长运营</strong>
+                  <span>推荐简历：电商运营版</span>
+                  <span class="tag amber" style="justify-self:start;">待确认最终版</span>
+                </div>
+              </div>
+              <div class="kanban-col">
+                <h4>已投递</h4>
+                <div class="kanban-card">
+                  <strong>得物 · 电商运营管培生</strong>
+                  <span>投递于 昨天 16:20</span>
+                  <span class="tag" style="justify-self:start;">外部回传最终版</span>
+                </div>
+                <div class="kanban-card">
+                  <strong>小红书 · 内容运营实习生</strong>
+                  <span>投递于 3 天前</span>
+                  <span class="tag" style="justify-self:start;">AI 定制版</span>
+                </div>
+              </div>
+              <div class="kanban-col">
+                <h4>等待回复</h4>
+                <div class="kanban-card">
+                  <strong>喜茶 · 品牌市场实习</strong>
+                  <span>投递于 6 天前</span>
+                </div>
+              </div>
+              <div class="kanban-col">
+                <h4>面试中</h4>
+                <div class="kanban-card">
+                  <strong>元气森林 · 用户运营</strong>
+                  <span>一面已通过，等待二面</span>
+                  <button class="link-btn" type="button" data-view="interviews">生成面试准备</button>
+                </div>
+              </div>
+              <div class="kanban-col">
+                <h4>已结束</h4>
+                <div class="kanban-card">
+                  <strong>完美日记 · 内容运营</strong>
+                  <span class="tag rose" style="justify-self:start;">已拒绝</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>投递明细</h2>
+              </div>
+            </div>
+            <div class="table-list">
+              <div class="table-row head">
+                <span>公司 / 岗位</span>
+                <span>最终简历版本</span>
+                <span>渠道</span>
+                <span class="hide-sm">投递时间</span>
+                <span class="hide-sm">状态</span>
+                <span></span>
+              </div>
+              <div class="table-row">
+                <strong>得物 · 电商运营管培生</strong>
+                <span>外部回传最终版</span>
+                <span>企业邮箱</span>
+                <span class="hide-sm">昨天 16:20</span>
+                <span class="tag hide-sm">等待回复</span>
+                <button class="link-btn" type="button" data-view="interviews">面试准备</button>
+              </div>
+              <div class="table-row">
+                <strong>元气森林 · 用户运营</strong>
+                <span>AI 定制版</span>
+                <span>招聘平台</span>
+                <span class="hide-sm">10 天前</span>
+                <span class="tag blue hide-sm">面试中</span>
+                <button class="link-btn" type="button" data-view="interviews">面试准备</button>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <!-- ============ 面试准备 ============ -->
+        <section class="content hidden-section" data-page="interviews">
+          <section class="panel">
+            <div class="panel-header">
+              <div>
+                <h2>面试准备 · 元气森林 用户运营</h2>
+                <span>基于最终投递简历、原始 JD 与经历库生成，二面前复习</span>
+              </div>
+              <span class="tag teal">DeepSeek · deepseek-chat</span>
+            </div>
+            <div class="card-grid" style="grid-template-columns: 1fr;">
+              <div class="interview-block">
+                <h3>自我介绍草稿</h3>
+                <p>我目前是市场营销专业大四学生，实习经历集中在内容社区运营和用户增长方向。在内容社区运营项目中，我参与拆解了社区热门内容的供给结构，并推动运营复盘从经验判断转向数据驱动。这段经历让我对用户增长岗位强调的用户洞察和策略迭代有较直接的实践积累。</p>
+              </div>
+              <div class="interview-block">
+                <h3>可能追问</h3>
+                <p>· 内容社区运营项目里提到的复盘表，具体是怎么设计指标口径的？</p>
+                <p>· 如果没有互动率数据支撑，你怎么判断内容策略是否有效？</p>
+                <p>· 用户增长和内容运营的核心差异，你怎么理解？</p>
+              </div>
+              <div class="interview-block">
+                <h3>STAR 回答框架示例</h3>
+                <p><strong>情境：</strong>社区内容供给结构不清晰，选题缺乏数据支撑。</p>
+                <p><strong>任务：</strong>整理竞品内容样本，搭建可复用的复盘框架。</p>
+                <p><strong>行动：</strong>拆解 120+ 条竞品内容，输出选题标签体系，协助搭建复盘表。</p>
+                <p><strong>结果：</strong>互动率数据待用户补充确认，暂不写入最终简历，回答时建议诚实说明当前处于数据沉淀阶段。</p>
+              </div>
+              <div class="interview-block">
+                <h3>需要复习的业务/技能点</h3>
+                <p>用户增长常见指标（DAU/留存/转化漏斗）、内容供给与消费匹配逻辑、A/B 测试基础概念。</p>
+              </div>
+              <div class="interview-block">
+                <h3>反问面试官</h3>
+                <p>· 这个岗位现阶段最重要的一个增长目标是什么？</p>
+                <p>· 团队目前是如何评估内容和增长效果的归因关系的？</p>
+              </div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const navButtons = document.querySelectorAll(".nav button");
+      const viewButtons = document.querySelectorAll("[data-view]");
+      const pages = document.querySelectorAll("[data-page]");
+      const title = document.querySelector(".title-block h1");
+      const subtitle = document.querySelector(".title-block p");
+
+      const pageCopy = {
+        dashboard: ["工作台", "待审核、投递进度和面试准备总览"],
+        review: ["今日投递审核", "2026 秋招批次 · 6 个岗位待确认 · 2 项事实待补充"],
+        resumes: ["简历库", "所有版本默认留痕，不覆盖旧版"],
+        experiences: ["经历库", "把简历背后的细节整理成可复用资产"],
+        jobs: ["岗位池", "统一承接 JD、链接、表格、平台和官网岗位"],
+        applications: ["投递追踪", "记录每次投递使用的最终材料"],
+        interviews: ["面试准备", "基于最终投递版生成准备材料"]
+      };
+
+      viewButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const target = button.dataset.view;
+          navButtons.forEach((item) => item.classList.remove("active"));
+          const navButton = document.querySelector(`.nav button[data-view="${target}"]`);
+          if (navButton) navButton.classList.add("active");
+          pages.forEach((page) => {
+            page.classList.toggle("hidden-section", page.dataset.page !== target);
+          });
+          if (pageCopy[target]) {
+            title.textContent = pageCopy[target][0];
+            subtitle.textContent = pageCopy[target][1];
+          }
+        });
+      });
+
+      document.querySelectorAll("[data-intake-tab]").forEach((tabBtn) => {
+        tabBtn.addEventListener("click", () => {
+          const group = tabBtn.closest(".panel");
+          const target = tabBtn.dataset.intakeTab;
+          group.querySelectorAll("[data-intake-tab]").forEach((btn) => btn.classList.remove("active"));
+          tabBtn.classList.add("active");
+          group.querySelectorAll("[data-intake-panel]").forEach((panel) => {
+            panel.classList.toggle("hidden-section", panel.dataset.intakePanel !== target);
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

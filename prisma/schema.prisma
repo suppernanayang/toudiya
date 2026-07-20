@@ -1,0 +1,410 @@
+// 投递鸭数据模型
+// 参考 handoff 目录中的 DATA_MODEL_SPEC.md 设计。
+// 注意：SQLite 不支持数据库原生 enum，所有"可选值"字段用 String 存储，
+// 允许值以注释形式记录，并在应用层（src/lib/types 或对应模块）用
+// TypeScript 联合类型做校验，保证行为和文档一致。
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// 用户与求职档案
+// ---------------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?  @unique
+  phone     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  profile               UserProfile?
+  llmSetting            LlmSetting?
+  resumeSources         ResumeSource[]
+  resumeVersions        ResumeVersion[]
+  experienceItems       ExperienceItem[]
+  jobs                  Job[]
+  reviewSessions        ReviewSession[]
+  applicationPackages   ApplicationPackage[]
+  applications          Application[]
+  interviewPreparations InterviewPreparation[]
+
+  @@map("users")
+}
+
+model UserProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique @map("user_id")
+  targetRoles        Json?    @map("target_roles")
+  targetIndustries   Json?    @map("target_industries")
+  targetCities       Json?    @map("target_cities")
+  salaryExpectation  String?  @map("salary_expectation")
+  workPreference     String?  @map("work_preference")
+  blacklistCompanies Json?    @map("blacklist_companies")
+  defaultLanguage    String   @default("zh-CN") @map("default_language")
+  privacyMode        Boolean  @default(false) @map("privacy_mode")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+// default_provider: deepseek | openai
+// fallback_provider: deepseek | openai | disabled
+model LlmSetting {
+  id               String   @id @default(cuid())
+  userId           String   @unique @map("user_id")
+  defaultProvider  String   @default("deepseek") @map("default_provider")
+  defaultModel     String   @default("deepseek-chat") @map("default_model")
+  fallbackProvider String   @default("openai") @map("fallback_provider")
+  fallbackModel    String   @default("gpt-4.1") @map("fallback_model")
+  autoFallback     Boolean  @default(true) @map("auto_fallback")
+  taskModelMap     Json?    @map("task_model_map")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("llm_settings")
+}
+
+// ---------------------------------------------------------------------------
+// 简历库
+// ---------------------------------------------------------------------------
+
+// source_type: original_upload | direction_resume | manual_created | imported
+model ResumeSource {
+  id               String   @id @default(cuid())
+  userId           String   @map("user_id")
+  name             String
+  sourceType       String   @map("source_type")
+  targetRoleType   String?  @map("target_role_type")
+  tags             Json?
+  originalFilePath String?  @map("original_file_path")
+  parsedText       String?  @map("parsed_text")
+  isDefault        Boolean  @default(false) @map("is_default")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeVersions  ResumeVersion[]
+  experienceItems ExperienceItem[]
+
+  @@map("resume_sources")
+}
+
+// version_type: original | direction | ai_draft | platform_edited | user_uploaded_final | submitted_final
+// created_by: user | ai | system
+// status: draft | candidate | selected | submitted | archived | deleted
+model ResumeVersion {
+  id                   String   @id @default(cuid())
+  userId               String   @map("user_id")
+  resumeSourceId       String   @map("resume_source_id")
+  parentVersionId      String?  @map("parent_version_id")
+  jobId                String?  @map("job_id")
+  versionName          String   @map("version_name")
+  versionType          String   @map("version_type")
+  status               String   @default("draft")
+  filePath             String?  @map("file_path")
+  fileFormat           String?  @map("file_format")
+  contentText          String?  @map("content_text")
+  changeSummary        Json?    @map("change_summary")
+  riskNotes            Json?    @map("risk_notes")
+  pendingConfirmations Json?    @map("pending_confirmations")
+  createdBy            String   @default("user") @map("created_by")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeSource     ResumeSource     @relation(fields: [resumeSourceId], references: [id], onDelete: Cascade)
+  job              Job?             @relation(fields: [jobId], references: [id])
+  parentVersion    ResumeVersion?   @relation("ResumeVersionParent", fields: [parentVersionId], references: [id])
+  childVersions    ResumeVersion[]  @relation("ResumeVersionParent")
+  resumeJobMatches ResumeJobMatch[]
+
+  reviewItemsAsRecommended ReviewItem[] @relation("ReviewItemRecommended")
+  reviewItemsAsAiDraft     ReviewItem[] @relation("ReviewItemAiDraft")
+  reviewItemsAsSelected    ReviewItem[] @relation("ReviewItemSelected")
+  reviewItemsAsFinal       ReviewItem[] @relation("ReviewItemFinal")
+
+  applicationPackages   ApplicationPackage[]
+  interviewPreparations InterviewPreparation[]
+
+  @@map("resume_versions")
+}
+
+// ---------------------------------------------------------------------------
+// 经历库
+// ---------------------------------------------------------------------------
+
+// experience_type: education | internship | project | campus | work | certificate | award | portfolio
+// evidence_status: confirmed | needs_confirmation | incomplete
+model ExperienceItem {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  resumeSourceId String?  @map("resume_source_id")
+  experienceType String   @map("experience_type")
+  title          String
+  organization   String?
+  role           String?
+  startDate      String?  @map("start_date")
+  endDate        String?  @map("end_date")
+  summary        String?
+  tags           Json?
+  skills         Json?
+  metrics        Json?
+  evidenceStatus String   @default("needs_confirmation") @map("evidence_status")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeSource ResumeSource?     @relation(fields: [resumeSourceId], references: [id])
+  details      ExperienceDetail?
+
+  @@map("experience_items")
+}
+
+model ExperienceDetail {
+  id                 String   @id @default(cuid())
+  experienceItemId   String   @unique @map("experience_item_id")
+  background         String?
+  task               String?
+  actions            String?
+  result             String?
+  dataPoints         Json?    @map("data_points")
+  challenges         String?
+  reflection         String?
+  interviewQuestions Json?    @map("interview_questions")
+  answerDrafts       Json?    @map("answer_drafts")
+  riskNotes          Json?    @map("risk_notes")
+  pendingQuestions   Json?    @map("pending_questions")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  experienceItem ExperienceItem @relation(fields: [experienceItemId], references: [id], onDelete: Cascade)
+
+  @@map("experience_details")
+}
+
+// ---------------------------------------------------------------------------
+// 岗位池
+// ---------------------------------------------------------------------------
+
+// source_type: manual_jd | url | spreadsheet | job_platform | company_website | referral | wechat
+// status: imported | analyzed | in_review | ready_to_apply | applied | paused | rejected_by_user | interviewing | closed
+model Job {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  company       String
+  title         String
+  sourceType    String   @map("source_type")
+  sourceName    String?  @map("source_name")
+  url           String?
+  city          String?
+  workMode      String?  @map("work_mode")
+  salaryRange   String?  @map("salary_range")
+  jdRawText     String?  @map("jd_raw_text")
+  status        String   @default("imported")
+  priority      String   @default("normal")
+  notes         String?
+  importBatchId String?  @map("import_batch_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  resumeVersions        ResumeVersion[]
+  jobAnalysis           JobAnalysis?
+  resumeJobMatches      ResumeJobMatch[]
+  reviewItems           ReviewItem[]
+  applicationPackages   ApplicationPackage[]
+  applications          Application[]
+  interviewPreparations InterviewPreparation[]
+
+  @@map("jobs")
+}
+
+model JobAnalysis {
+  id                    String   @id @default(cuid())
+  jobId                 String   @unique @map("job_id")
+  roleType              String?  @map("role_type")
+  summary               String?
+  responsibilities      Json?
+  hardRequirements      Json?    @map("hard_requirements")
+  niceToHave            Json?    @map("nice_to_have")
+  keywords              Json?
+  experienceYears       String?  @map("experience_years")
+  educationRequirements String?  @map("education_requirements")
+  riskFlags             Json?    @map("risk_flags")
+  interviewFocus        Json?    @map("interview_focus")
+  modelProvider         String?  @map("model_provider")
+  modelName             String?  @map("model_name")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  job Job @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@map("job_analyses")
+}
+
+// recommended_action: apply | apply_after_revision | pause | do_not_apply
+model ResumeJobMatch {
+  id                 String   @id @default(cuid())
+  jobId              String   @map("job_id")
+  resumeVersionId    String   @map("resume_version_id")
+  matchScore         Int?     @map("match_score")
+  matchReasons       Json?    @map("match_reasons")
+  missingKeywords    Json?    @map("missing_keywords")
+  recommendedChanges Json?    @map("recommended_changes")
+  recommendedAction  String?  @map("recommended_action")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  job           Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  resumeVersion ResumeVersion @relation(fields: [resumeVersionId], references: [id], onDelete: Cascade)
+
+  @@map("resume_job_matches")
+}
+
+// ---------------------------------------------------------------------------
+// 审核台
+// ---------------------------------------------------------------------------
+
+// status: draft | in_progress | completed | archived
+model ReviewSession {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  name      String
+  status    String   @default("in_progress")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items ReviewItem[]
+
+  @@map("review_sessions")
+}
+
+// decision: undecided | apply | pause | skip | favorite
+model ReviewItem {
+  id                             String   @id @default(cuid())
+  reviewSessionId                String   @map("review_session_id")
+  jobId                          String   @map("job_id")
+  recommendedResumeVersionId     String?  @map("recommended_resume_version_id")
+  aiDraftResumeVersionId         String?  @map("ai_draft_resume_version_id")
+  currentSelectedResumeVersionId String?  @map("current_selected_resume_version_id")
+  finalResumeVersionId           String?  @map("final_resume_version_id")
+  decision                       String   @default("undecided")
+  priority                       String   @default("normal")
+  applicationMessage             String?  @map("application_message")
+  emailBody                      String?  @map("email_body")
+  notes                          String?
+  riskAcknowledged               Boolean  @default(false) @map("risk_acknowledged")
+  createdAt                      DateTime @default(now()) @map("created_at")
+  updatedAt                      DateTime @updatedAt @map("updated_at")
+
+  reviewSession                ReviewSession  @relation(fields: [reviewSessionId], references: [id], onDelete: Cascade)
+  job                          Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  recommendedResumeVersion     ResumeVersion? @relation("ReviewItemRecommended", fields: [recommendedResumeVersionId], references: [id])
+  aiDraftResumeVersion         ResumeVersion? @relation("ReviewItemAiDraft", fields: [aiDraftResumeVersionId], references: [id])
+  currentSelectedResumeVersion ResumeVersion? @relation("ReviewItemSelected", fields: [currentSelectedResumeVersionId], references: [id])
+  finalResumeVersion           ResumeVersion? @relation("ReviewItemFinal", fields: [finalResumeVersionId], references: [id])
+
+  applicationPackage ApplicationPackage?
+
+  @@map("review_items")
+}
+
+// ---------------------------------------------------------------------------
+// 最终投递包与投递记录
+// ---------------------------------------------------------------------------
+
+// submission_method: manual | copy_assist | platform_assist | company_site_form | email
+// status: draft | confirmed | submitted | cancelled
+model ApplicationPackage {
+  id                   String   @id @default(cuid())
+  userId               String   @map("user_id")
+  jobId                String   @map("job_id")
+  reviewItemId         String?  @unique @map("review_item_id")
+  finalResumeVersionId String   @map("final_resume_version_id")
+  applicationMessage   String?  @map("application_message")
+  emailBody            String?  @map("email_body")
+  attachments          Json?
+  submissionMethod     String   @default("manual") @map("submission_method")
+  priority             String   @default("normal")
+  notes                String?
+  status               String   @default("draft")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  user               User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job                Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  reviewItem         ReviewItem?   @relation(fields: [reviewItemId], references: [id])
+  finalResumeVersion ResumeVersion @relation(fields: [finalResumeVersionId], references: [id])
+  application        Application?
+
+  @@map("application_packages")
+}
+
+// current_status: submitted | waiting | interview_invited | interviewing | offer | rejected | withdrawn | closed
+model Application {
+  id                   String    @id @default(cuid())
+  userId               String    @map("user_id")
+  jobId                String    @map("job_id")
+  applicationPackageId String    @unique @map("application_package_id")
+  submittedAt          DateTime? @map("submitted_at")
+  currentStatus        String    @default("waiting") @map("current_status")
+  nextAction           String?   @map("next_action")
+  nextActionAt         DateTime? @map("next_action_at")
+  feedback             String?
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job                Job                @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  applicationPackage ApplicationPackage @relation(fields: [applicationPackageId], references: [id], onDelete: Cascade)
+
+  interviewPreparations InterviewPreparation[]
+
+  @@map("applications")
+}
+
+// ---------------------------------------------------------------------------
+// 面试准备
+// ---------------------------------------------------------------------------
+
+model InterviewPreparation {
+  id                 String   @id @default(cuid())
+  userId             String   @map("user_id")
+  jobId              String   @map("job_id")
+  applicationId      String?  @map("application_id")
+  resumeVersionId    String   @map("resume_version_id")
+  selfIntro          String?  @map("self_intro")
+  keyExperienceBrief Json?    @map("key_experience_brief")
+  likelyQuestions    Json?    @map("likely_questions")
+  starAnswers        Json?    @map("star_answers")
+  businessQuestions  Json?    @map("business_questions")
+  skillsToReview     Json?    @map("skills_to_review")
+  questionsToAsk     Json?    @map("questions_to_ask")
+  riskNotes          Json?    @map("risk_notes")
+  modelProvider      String?  @map("model_provider")
+  modelName          String?  @map("model_name")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  job           Job           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  application   Application?  @relation(fields: [applicationId], references: [id])
+  resumeVersion ResumeVersion @relation(fields: [resumeVersionId], references: [id])
+
+  @@map("interview_preparations")
+}

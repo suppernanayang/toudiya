@@ -64,6 +64,30 @@ export async function readStorageFile(relativePath: string): Promise<Buffer> {
   return fs.readFile(absolutePath);
 }
 
+/**
+ * 保存导出文件（比如导出 PDF），跟 saveResumeFile 不同的地方是这类文件
+ * 不是"新的简历版本"，只是某个已有版本派生出来的一份可下载产物，
+ * 存进 storage/exports/，同一份版本重复导出会直接覆盖旧文件（不需要历史留痕）。
+ */
+export async function saveExportFile(params: {
+  userId: string;
+  versionId: string;
+  ext: string;
+  content: Buffer | string;
+}): Promise<{ relativePath: string; absolutePath: string }> {
+  const dir = path.join(STORAGE_ROOT, "exports");
+  await fs.mkdir(dir, { recursive: true });
+
+  const ext = params.ext.replace(/^\./, "");
+  const filename = `${sanitizeSegment(params.userId)}_${sanitizeSegment(params.versionId)}.${ext}`;
+  const absolutePath = path.join(dir, filename);
+
+  await fs.writeFile(absolutePath, params.content);
+
+  const relativePath = path.relative(process.cwd(), absolutePath);
+  return { relativePath, absolutePath };
+}
+
 async function fileExists(filePath: string): Promise<boolean> {
   try {
     await fs.access(filePath);

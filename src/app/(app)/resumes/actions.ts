@@ -2,12 +2,37 @@
 
 import { randomUUID } from "crypto";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db";
 import { DEFAULT_USER_ID } from "@/lib/current-user";
 import { saveResumeFile } from "@/lib/storage";
 import { parseResumeFile } from "@/lib/document-parser";
 import { extractResumeExperience } from "@/lib/llm";
 import { saveExtractedExperienceItem } from "@/lib/experience";
+
+type ActionResult = { ok: true } | { ok: false; message: string };
+
+export async function updatePersonalInfo(formData: FormData): Promise<ActionResult> {
+  const name = String(formData.get("name") || "").trim();
+  const email = String(formData.get("email") || "").trim();
+  const phone = String(formData.get("phone") || "").trim();
+
+  if (!name) {
+    return { ok: false, message: "姓名不能为空，PDF 简历抬头需要用到它。" };
+  }
+
+  await prisma.user.update({
+    where: { id: DEFAULT_USER_ID },
+    data: {
+      name,
+      email: email || null,
+      phone: phone || null,
+    },
+  });
+
+  revalidatePath("/resumes");
+  return { ok: true };
+}
 
 async function extractAndSaveExperience(resumeSourceId: string, resumeText: string) {
   if (!resumeText.trim()) return { ok: true as const };

@@ -49,3 +49,6 @@ yarn-error.log*
 next-env.d.ts
 
 /src/generated/prisma
+
+# 开发时预览脚本生成的样例 PDF，不需要进 git
+/scripts/*.pdf

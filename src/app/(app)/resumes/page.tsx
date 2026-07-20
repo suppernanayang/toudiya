@@ -4,6 +4,8 @@ import { PageShell } from "@/components/layout/PageShell";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { Tag, TagVariant } from "@/components/ui/Tag";
 import { ResumeIntakeTabs } from "./IntakeTabs";
+import { PersonalInfoForm } from "./PersonalInfoForm";
+import { ExportPdfButton } from "./ExportPdfButton";
 
 const SOURCE_LABEL: Record<string, { label: string; variant: TagVariant }> = {
   original_upload: { label: "原始版", variant: "default" },
@@ -37,6 +39,8 @@ export default async function ResumesPage({
     },
   });
 
+  const user = await prisma.user.findUnique({ where: { id: DEFAULT_USER_ID } });
+
   return (
     <PageShell title="简历库" subtitle="所有版本默认留痕，不覆盖旧版">
       {params.warning ? (
@@ -49,6 +53,15 @@ export default async function ResumesPage({
           简历已保存，经历库已同步更新。
         </div>
       ) : null}
+
+      <Panel>
+        <PanelHeader title="个人信息" subtitle="导出 PDF 简历的抬头信息，只需要填一次" />
+        <PersonalInfoForm
+          initialName={user?.name === "我" ? "" : user?.name || ""}
+          initialEmail={user?.email || ""}
+          initialPhone={user?.phone || ""}
+        />
+      </Panel>
 
       <Panel>
         <PanelHeader title="新建简历" subtitle="支持粘贴文本或上传文件，两种方式都会生成一条可追溯的原始版本" />
@@ -87,12 +100,13 @@ export default async function ResumesPage({
                       })}
                     </div>
                   ) : null}
-                  <div className="flex gap-3 text-xs">
+                  <div className="flex gap-3 text-xs items-start">
                     {latestVersion?.filePath ? (
                       <a href={`/api/files/${encodeURIComponent(latestVersion.filePath)}`} className="text-teal-dark">
                         下载最新版本
                       </a>
                     ) : null}
+                    {latestVersion ? <ExportPdfButton versionId={latestVersion.id} /> : null}
                   </div>
                 </div>
               );

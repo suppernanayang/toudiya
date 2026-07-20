@@ -13,6 +13,7 @@ import {
   updateApplicationMessage,
   uploadFinalVersion,
 } from "./actions";
+import { exportResumeVersionPdf } from "../resumes/pdf-actions";
 
 export interface QueueItem {
   jobId: string;
@@ -284,11 +285,35 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
           <div className="min-w-0 border border-line rounded-lg bg-[#fbfcfc] overflow-hidden">
             <div className="min-h-[42px] px-2.5 flex items-center justify-between gap-2 border-b border-line bg-white">
               <Tag variant="teal">{detail.currentVersion ? VERSION_TYPE_LABEL[detail.currentVersion.versionType] : "无版本"}</Tag>
-              {detail.currentVersion?.filePath ? (
-                <a href={`/api/files/${encodeURIComponent(detail.currentVersion.filePath)}`} className="text-teal-dark text-xs whitespace-nowrap">
-                  下载当前版本
-                </a>
-              ) : null}
+              <div className="flex items-center gap-3">
+                {detail.currentVersion?.filePath ? (
+                  <a href={`/api/files/${encodeURIComponent(detail.currentVersion.filePath)}`} className="text-teal-dark text-xs whitespace-nowrap">
+                    下载当前版本
+                  </a>
+                ) : null}
+                {detail.currentVersion ? (
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => {
+                      const versionId = detail.currentVersion?.id;
+                      if (!versionId) return;
+                      setError(null);
+                      startTransition(async () => {
+                        const result = await exportResumeVersionPdf(versionId);
+                        if (!result.ok) {
+                          setError(result.message);
+                        } else {
+                          window.open(result.downloadUrl, "_blank");
+                        }
+                      });
+                    }}
+                    className="text-teal-dark text-xs whitespace-nowrap disabled:opacity-60"
+                  >
+                    导出 PDF
+                  </button>
+                ) : null}
+              </div>
             </div>
             <textarea
               value={editText}

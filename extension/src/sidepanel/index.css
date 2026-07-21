@@ -1,0 +1,46 @@
+:root {
+  color-scheme: light;
+  --color-bg: #f6f8f7;
+  --color-surface: #ffffff;
+  --color-line: #dbe5e0;
+  --color-text: #18211f;
+  --color-muted: #65736f;
+  --color-teal: #0f766e;
+  --color-teal-dark: #115e59;
+  --color-mint: #dff3ec;
+  --color-amber: #b45309;
+  --color-amber-soft: #fff2d1;
+  --color-rose: #be123c;
+  --color-rose-soft: #ffe4e6;
+  --color-green: #15803d;
+  --color-green-soft: #e7f6ec;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+textarea,
+input {
+  font-family: inherit;
+  font-size: 13px;
+}

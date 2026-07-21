@@ -53,3 +53,7 @@ next-env.d.ts
 
 # 开发时预览脚本生成的样例 PDF，不需要进 git
 /scripts/*.pdf
+
+# 浏览器插件子项目（extension/）自己的依赖和构建产物
+/extension/node_modules
+/extension/dist

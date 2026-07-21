@@ -1,0 +1,109 @@
+import Defuddle from "defuddle";
+import type { ExtensionMessage, ExtensionResponse, JdExtractionResult } from "../lib/messages";
+
+// 这个文件会被注入到「除了求职鸭自己」以外的所有网页里，但默认什么都不做，
+// 只是挂一个消息监听器，等侧面板发"EXTRACT_JD_IN_TAB"消息过来才真正开始工作，
+// 不会自动扫描/上传任何页面内容。
+
+chrome.runtime.onMessage.addListener((message: ExtensionMessage, _sender, sendResponse) => {
+  if (message.type !== "EXTRACT_JD_IN_TAB") return;
+  extractJd()
+    .then((result) => sendResponse({ ok: true, result } satisfies ExtensionResponse))
+    .catch((error) => {
+      sendResponse({
+        ok: false,
+        message: error instanceof Error ? error.message : "识别失败，未知错误",
+      } satisfies ExtensionResponse);
+    });
+  return true;
+});
+
+async function extractJd(): Promise<JdExtractionResult> {
+  const bySelector = trySiteSpecificSelectors();
+  if (bySelector) return bySelector;
+
+  // 没有命中已知平台的规则（或者规则暂时失效），走通用兜底：
+  // 先用 defuddle 把整页降噪成干净正文，再交给后端 AI 识别。
+  const cleanedText = extractCleanedPageText();
+  if (!cleanedText || cleanedText.length < 30) {
+    throw new Error("这个页面识别不到什么内容，可能不是招聘详情页，或者页面还没加载完。");
+  }
+
+  const response = (await chrome.runtime.sendMessage({
+    type: "AI_EXTRACT_JOB_FROM_TEXT",
+    pageText: cleanedText,
+    url: window.location.href,
+  } satisfies ExtensionMessage)) as ExtensionResponse;
+
+  if (!response.ok) throw new Error(response.message);
+  if (!("result" in response)) throw new Error("识别结果格式不对。");
+  return response.result;
+}
+
+function extractCleanedPageText(): string {
+  try {
+    const result = new Defuddle(document).parse();
+    return (result.content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  } catch (error) {
+    console.error("[toudiya-extension] defuddle 解析失败，回退成整页纯文本：", error);
+    return document.body?.innerText?.trim() || "";
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 已知平台的精确选择器规则。
+//
+// 重要说明：下面 Boss 直聘的选择器是根据公开资料/历史经验写的猜测值，
+// 没有条件实机验证过（Boss 直聘对非浏览器请求会返回反爬验证页，没法直接
+// 抓到真实 DOM 结构核实）。如果装上插件之后发现 Boss 直聘识别不出来，
+// 大概率是这几个选择器字符串需要根据实际页面结构调整——用浏览器开发者工具
+// 看一下真实的 class 名，改这里就行，不需要动其他逻辑。
+// 找不到任何一个候选选择器时，会自动降级走下面的通用兜底路径，不会直接报错。
+// ---------------------------------------------------------------------------
+
+interface SiteRule {
+  hostnamePattern: RegExp;
+  titleSelectors: string[];
+  companySelectors: string[];
+  jdTextSelectors: string[];
+}
+
+const SITE_RULES: SiteRule[] = [
+  {
+    hostnamePattern: /(^|\.)zhipin\.com$/,
+    titleSelectors: [".job-name", ".job-title", ".job-banner .name", "h1.name"],
+    companySelectors: [".job-boss-info .name", ".company-info .name", ".job-primary .name", ".sider-company .name"],
+    jdTextSelectors: [".job-sec-text", ".job-detail .text", ".job-detail-section .text", ".desc-content"],
+  },
+];
+
+function trySiteSpecificSelectors(): JdExtractionResult | null {
+  const rule = SITE_RULES.find((r) => r.hostnamePattern.test(window.location.hostname));
+  if (!rule) return null;
+
+  const title = firstMatchText(rule.titleSelectors);
+  const company = firstMatchText(rule.companySelectors);
+  const jdText = firstMatchText(rule.jdTextSelectors);
+
+  // 标题和正文任何一个没找到，都认为这套规则失效了，交给通用兜底处理，
+  // 不要拿一份缺胳膊少腿的结果去骗用户"识别成功了"。
+  if (!title || !jdText) return null;
+
+  return {
+    isLikelyJobPosting: true,
+    company: company || "",
+    title,
+    jdText,
+    confidence: company ? "high" : "medium",
+    source: "selector",
+  };
+}
+
+function firstMatchText(selectors: string[]): string {
+  for (const selector of selectors) {
+    const el = document.querySelector(selector);
+    const text = el?.textContent?.trim();
+    if (text) return text;
+  }
+  return "";
+}

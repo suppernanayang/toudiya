@@ -54,6 +54,8 @@ next-env.d.ts
 # 开发时预览脚本生成的样例 PDF，不需要进 git
 /scripts/*.pdf
 
-# 浏览器插件子项目（extension/）自己的依赖和构建产物
+# 浏览器插件子项目（extension/）自己的依赖不用进 git；
+# dist 反而要提交——这个项目没有 CI/构建流水线，/extension 设置页的
+# "下载插件安装包"是直接读这份构建产物打包给用户下载的，不提交的话
+# 换一台机器/重新 clone 之后这个下载按钮就会失效。
 /extension/node_modules
-/extension/dist

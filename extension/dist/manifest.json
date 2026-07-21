@@ -1,0 +1,73 @@
+{
+  "manifest_version": 3,
+  "name": "投递鸭助手",
+  "description": "一键导入 JD、辅助填表。所有数据只在本机流转，不经过任何第三方服务器。",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "投递鸭助手"
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
+  },
+  "background": {
+    "service_worker": "service-worker-loader.js",
+    "type": "module"
+  },
+  "permissions": [
+    "storage",
+    "sidePanel",
+    "tabs"
+  ],
+  "host_permissions": [
+    "http://localhost:3000/*",
+    "http://*/*",
+    "https://*/*"
+  ],
+  "content_scripts": [
+    {
+      "js": [
+        "assets/pairing.ts-CwsgW_Yf.js"
+      ],
+      "matches": [
+        "http://localhost:3000/*"
+      ],
+      "run_at": "document_idle"
+    },
+    {
+      "js": [
+        "assets/jd-detect.ts-loader-CbY1AL38.js"
+      ],
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "exclude_matches": [
+        "http://localhost:3000/*",
+        "http://localhost/*"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "matches": [
+        "http://localhost:3000/*"
+      ],
+      "resources": [
+        "assets/pairing.ts-CwsgW_Yf.js"
+      ],
+      "use_dynamic_url": false
+    },
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "resources": [
+        "assets/rolldown-runtime-Bh1tDfsg.js",
+        "assets/jd-detect.ts-CUtAMyHm.js"
+      ],
+      "use_dynamic_url": false
+    }
+  ]
+}

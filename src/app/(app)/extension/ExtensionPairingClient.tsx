@@ -105,25 +105,22 @@ export function ExtensionPairingClient({ token, lastSeenAt }: { token: string; l
       </Panel>
 
       <Panel>
-        <PanelHeader title="安装说明" subtitle="开发者模式加载，个人使用，不需要上架应用商店" />
-        <div className="p-4 grid gap-2 text-sm leading-relaxed text-muted">
-          <p className="m-0">插件源码在项目仓库的 extension/ 目录下，安装步骤：</p>
+        <PanelHeader title="安装说明" subtitle="开发者模式加载，个人使用，不需要上架应用商店，也不需要装 Node 环境" />
+        <div className="p-4 grid gap-3 text-sm leading-relaxed text-muted">
+          <a
+            href="/api/extension/download"
+            className="inline-flex items-center justify-center min-h-9 rounded-lg border border-teal bg-teal text-white text-sm px-4 no-underline w-fit"
+          >
+            下载插件安装包
+          </a>
           <ol className="m-0 pl-5 grid gap-1 list-decimal">
-            <li>
-              在项目根目录执行：<code className="bg-[#f1f4f3] px-1 rounded">cd extension &amp;&amp; npm install &amp;&amp; npm run build</code>
-            </li>
+            <li>点上面的按钮下载一个 zip 压缩包</li>
+            <li>双击解压（会得到一个文件夹）</li>
             <li>浏览器地址栏打开 chrome://extensions</li>
             <li>打开右上角&ldquo;开发者模式&rdquo;</li>
-            <li>
-              点&ldquo;加载已解压的扩展程序&rdquo;，选中 <code className="bg-[#f1f4f3] px-1 rounded">extension/dist</code> 这个文件夹（不是
-              extension 本身，是里面构建出来的 dist）
-            </li>
+            <li>点&ldquo;加载已解压的扩展程序&rdquo;，选中刚刚解压出来的那个文件夹</li>
             <li>回到这个页面刷新一下，看到&ldquo;插件已连接&rdquo;就说明装好了</li>
           </ol>
-          <p className="m-0 text-xs">
-            改了插件代码之后要重新 <code className="bg-[#f1f4f3] px-1 rounded">npm run build</code>，
-            再去 chrome://extensions 点一下这个扩展卡片上的刷新图标。
-          </p>
         </div>
       </Panel>
     </>

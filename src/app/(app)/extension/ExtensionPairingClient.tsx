@@ -70,7 +70,7 @@ export function ExtensionPairingClient({ token, lastSeenAt }: { token: string; l
             {status === "not_detected" ? <Tag variant="amber">未检测到插件</Tag> : null}
           </div>
           {lastSeenAt ? (
-            <div className="text-muted text-xs">最近一次收到插件请求：{new Date(lastSeenAt).toLocaleString()}</div>
+            <div className="text-muted text-xs">最近一次收到插件请求：{new Date(lastSeenAt).toLocaleString("zh-CN")}</div>
           ) : null}
           {status === "not_detected" ? (
             <div className="text-muted text-xs leading-relaxed">

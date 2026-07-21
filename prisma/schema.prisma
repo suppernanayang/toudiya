@@ -38,6 +38,7 @@ model User {
   applicationPackages   ApplicationPackage[]
   applications          Application[]
   interviewPreparations InterviewPreparation[]
+  extensionPairing      ExtensionPairing?
 
   @@map("users")
 }
@@ -416,4 +417,27 @@ model InterviewPreparation {
   resumeVersion ResumeVersion @relation(fields: [resumeVersionId], references: [id])
 
   @@map("interview_preparations")
+}
+
+// ---------------------------------------------------------------------------
+// 浏览器插件配对
+// ---------------------------------------------------------------------------
+
+/**
+ * 浏览器插件跟本地服务之间的配对凭证。单用户单机场景，全表只会有一行数据。
+ * token 由用户在"浏览器插件"设置页点一下生成，页面用 postMessage 自动交给插件，
+ * 不需要手动复制粘贴；插件请求 /api/extension/* 时要带上这个 token 做校验，
+ * 防止其他打开着的网页标签页悄悄调用这些接口。
+ */
+model ExtensionPairing {
+  id         String    @id @default(cuid())
+  userId     String    @unique @map("user_id")
+  token      String    @unique
+  lastSeenAt DateTime? @map("last_seen_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("extension_pairings")
 }

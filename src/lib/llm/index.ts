@@ -7,3 +7,4 @@ export * from "./tasks/customize-resume";
 export * from "./tasks/generate-application-message";
 export * from "./tasks/generate-interview-preparation";
 export * from "./tasks/reformat-resume";
+export * from "./tasks/extract-job-from-page";

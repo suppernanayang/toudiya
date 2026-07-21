@@ -42,6 +42,7 @@ async function main() {
         application_message: { provider: "deepseek", model: "deepseek-chat" },
         interview_preparation: { provider: "deepseek", model: "deepseek-chat" },
         fact_review: { provider: "deepseek", model: "deepseek-chat" },
+        job_extraction_from_page: { provider: "deepseek", model: "deepseek-chat" },
       },
     },
   });

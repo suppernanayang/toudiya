@@ -11,7 +11,8 @@ export type LlmTaskName =
   | "application_message"
   | "interview_preparation"
   | "fact_review"
-  | "resume_experience_extraction";
+  | "resume_experience_extraction"
+  | "job_extraction_from_page";
 
 export interface LlmMessage {
   role: "system" | "user";

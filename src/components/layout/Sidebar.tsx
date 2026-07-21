@@ -63,6 +63,11 @@ export function Sidebar({
       label: "面试准备",
       icon: <Icon d="M21 15a4 4 0 0 1-4 4H7l-4 4V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z" />,
     },
+    {
+      href: "/extension",
+      label: "浏览器插件",
+      icon: <Icon d="M9 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-4M12 3h4a2 2 0 0 1 2 2v4M9 15l6-6M9 9h6v6" />,
+    },
   ];
 
   return (

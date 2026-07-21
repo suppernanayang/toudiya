@@ -468,6 +468,10 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
           >
             设为最终投递版
           </button>
+          <p className="m-0 text-xs text-muted leading-relaxed">
+            下面三个按钮只是记录你自己的投递进展，不会帮你自动登录/操作 Boss 直聘等平台——
+            请先在目标平台上手动完成真实的投递/打招呼，再回来点&ldquo;投递&rdquo;做记录。
+          </p>
           <div className="grid grid-cols-3 gap-2">
             <button
               type="button"

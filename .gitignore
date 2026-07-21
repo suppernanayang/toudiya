@@ -24,6 +24,9 @@
 .DS_Store
 *.pem
 
+# clawhub CLI 在项目目录里生成的本地记录，跟项目本身无关
+/.clawhub/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

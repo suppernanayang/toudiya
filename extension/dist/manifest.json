@@ -35,7 +35,7 @@
     },
     {
       "js": [
-        "assets/jd-detect.ts-loader-CbY1AL38.js"
+        "assets/jd-detect.ts-loader-DSggMFL4.js"
       ],
       "matches": [
         "http://*/*",
@@ -65,7 +65,7 @@
       ],
       "resources": [
         "assets/rolldown-runtime-Bh1tDfsg.js",
-        "assets/jd-detect.ts-CUtAMyHm.js"
+        "assets/jd-detect.ts-pXTK_ayf.js"
       ],
       "use_dynamic_url": false
     }

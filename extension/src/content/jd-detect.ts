@@ -23,7 +23,7 @@ async function extractJd(): Promise<JdExtractionResult> {
   if (bySelector) return bySelector;
 
   // 没有命中已知平台的规则（或者规则暂时失效），走通用兜底：
-  // 先用 defuddle 把整页降噪成干净正文，再交给后端 AI 识别。
+  // 先尽量抓一份干净正文，再交给后端 AI 识别。
   const cleanedText = extractCleanedPageText();
   if (!cleanedText || cleanedText.length < 30) {
     throw new Error("这个页面识别不到什么内容，可能不是招聘详情页，或者页面还没加载完。");
@@ -37,17 +37,53 @@ async function extractJd(): Promise<JdExtractionResult> {
 
   if (!response.ok) throw new Error(response.message);
   if (!("result" in response)) throw new Error("识别结果格式不对。");
-  return response.result;
+  // 不管 AI 认不认得出来，都把实际发给它的原始文本带回去，
+  // 侧面板会展示出来，方便识别不准的时候直接看到问题出在"抓错内容"
+  // 还是"AI 理解错了"。
+  return { ...response.result, debugText: cleanedText.slice(0, 4000) };
 }
 
+/**
+ * 抓页面正文的策略，按顺序尝试，取第一个"看起来像样"的结果：
+ * 1. defuddle 降噪提取——大部分正常的详情页效果最好，噪音最少。
+ * 2. 如果 defuddle 抓到的内容太短，或者完全没有 JD 常见关键词
+ *    （比如"职责""要求""任职"这些词一个都没有），大概率是 defuddle
+ *    在这个网站的复杂布局里没找对区域（很多招聘网站是列表+预览这种
+ *    多栏结构，不是简单的单栏文章页，defuddle 的"识别文章正文"算法
+ *    容易失效），这时候直接退回整页纯文本，虽然更噪但至少不会漏内容。
+ */
 function extractCleanedPageText(): string {
+  let defuddleText = "";
   try {
     const result = new Defuddle(document).parse();
-    return (result.content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    defuddleText = (result.content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   } catch (error) {
-    console.error("[toudiya-extension] defuddle 解析失败，回退成整页纯文本：", error);
-    return document.body?.innerText?.trim() || "";
+    console.error("[toudiya-extension] defuddle 解析失败：", error);
   }
+
+  if (looksLikeJobContent(defuddleText)) {
+    return defuddleText;
+  }
+
+  const rawText = (document.body?.innerText || "").replace(/\s+/g, " ").trim();
+  // 整页纯文本可能很长（尤其是列表+预览这种页面，一堆职位卡片文字都在），
+  // 截断到一个既能覆盖正文、又不会让 AI 调用太贵太慢的长度。
+  const truncated = rawText.slice(0, 12000);
+
+  // defuddle 结果虽然没命中关键词，但比整页纯文本更干净，
+  // 而且整页纯文本也没有关键词命中的话，还是优先用 defuddle 的结果
+  // （信息量更聚焦），除非它比整页纯文本短得多，那更可能是没抓对区域。
+  if (defuddleText && defuddleText.length >= truncated.length * 0.3) {
+    return defuddleText;
+  }
+  return truncated || defuddleText;
+}
+
+const JD_KEYWORDS = ["岗位职责", "工作职责", "任职要求", "任职资格", "岗位要求", "职位描述", "职位职责"];
+
+function looksLikeJobContent(text: string): boolean {
+  if (!text || text.length < 200) return false;
+  return JD_KEYWORDS.some((keyword) => text.includes(keyword));
 }
 
 // ---------------------------------------------------------------------------

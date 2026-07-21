@@ -17,6 +17,8 @@ export function App() {
   const [extractionMeta, setExtractionMeta] = useState<Pick<JdExtractionResult, "source" | "confidence"> | null>(
     null,
   );
+  const [debugText, setDebugText] = useState("");
+  const [showDebugText, setShowDebugText] = useState(false);
   const [importState, setImportState] = useState<ImportState>("idle");
   const [importMessage, setImportMessage] = useState("");
 
@@ -32,6 +34,7 @@ export function App() {
     setExtractState("extracting");
     setExtractError("");
     setImportState("idle");
+    setDebugText("");
     try {
       const res = await sendMessage({ type: "EXTRACT_JD_ON_ACTIVE_TAB" });
       if (!res.ok) {
@@ -46,6 +49,7 @@ export function App() {
       }
       setForm({ company: res.result.company, title: res.result.title, jdText: res.result.jdText });
       setExtractionMeta({ source: res.result.source, confidence: res.result.confidence });
+      setDebugText(res.result.debugText || "");
       setExtractState("ready");
     } catch (error) {
       setExtractState("error");
@@ -135,6 +139,36 @@ export function App() {
               {extractionMeta.source === "ai" ? `（把握程度：${confidenceLabel(extractionMeta.confidence)}）` : ""}
               —— 如果不准，直接改下面的内容就行。
             </p>
+          ) : null}
+
+          {debugText ? (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowDebugText((v) => !v)}
+                style={{ fontSize: 11, color: "var(--color-teal-dark)", background: "none", border: "none", padding: 0 }}
+              >
+                {showDebugText ? "隐藏" : "查看"}实际抓到的原始文本（识别不准时可以看看是不是抓错内容了）
+              </button>
+              {showDebugText ? (
+                <pre
+                  style={{
+                    marginTop: 6,
+                    padding: 8,
+                    background: "#fbfcfc",
+                    border: "1px solid var(--color-line)",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-all",
+                    maxHeight: 160,
+                    overflow: "auto",
+                  }}
+                >
+                  {debugText}
+                </pre>
+              ) : null}
+            </div>
           ) : null}
 
           <Field label="公司">

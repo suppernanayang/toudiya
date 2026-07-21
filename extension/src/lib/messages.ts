@@ -11,6 +11,12 @@ export interface JdExtractionResult {
   confidence: "high" | "medium" | "low";
   /** 这次结果是本地选择器精确命中的，还是 AI 从整页正文里猜出来的。 */
   source: "selector" | "ai";
+  /**
+   * 兜底路径（AI 识别）时，实际抓到、发给 AI 的原始正文——不管识别成不成功都带上，
+   * 侧面板会展示出来，识别不准的时候能直接看到"到底抓到了什么"，
+   * 不用每次都靠猜选择器对不对。
+   */
+  debugText?: string;
 }
 
 export type ExtensionMessage =

@@ -25,13 +25,21 @@ export async function extractJobFromPageText(input: {
 }): Promise<{ envelope: LlmEnvelope<JobExtractionFromPageResult>; meta: LlmTaskCallMeta }> {
   const systemPrompt = `${SAFETY_SYSTEM_PROMPT}
 
-任务：给你一段从网页正文里提取出来的文本（可能是招聘详情页，也可能不是），
-判断这段文本是不是一个岗位招聘信息，如果是，从里面识别出公司名、岗位名称、
-JD 正文这三块内容。
+任务：给你一段从网页里抓取到的文本（可能已经过降噪处理，也可能是整页的原始文字，
+里面会掺杂导航栏、页脚、其他不相关内容），判断这段文本里有没有一个岗位招聘信息，
+如果有，从里面识别出公司名、岗位名称、JD 正文这三块内容。
+
+有两种常见的页面情况都要能处理：
+1. 单个岗位的详情页：整段文本基本上就是这一个岗位的信息，直接提取。
+2. 招聘网站的"搜索列表 + 预览"页面：左边是一堆职位的简短卡片（每个只有职位名、
+   薪资、公司这种一行摘要），右边是当前选中的那个职位的完整详情（有完整的
+   "岗位职责""任职要求"这类分段说明）。遇到这种情况，你要找的是那个内容
+   最完整、有清晰"职责/要求"分段说明的那一份，不要把左边列表里其他职位的
+   简短摘要当成目标岗位的信息，也不要把好几个不同职位的信息混在一起拼成一份。
 
 "result" 字段必须是一个对象：
 {
-  "isLikelyJobPosting": boolean,  // 这段文本看起来像不像一个岗位招聘详情页
+  "isLikelyJobPosting": boolean,  // 这段文本里有没有找到符合上述特征的岗位详情
   "company": string,              // 识别出的公司名，识别不出来就是空字符串
   "title": string,                // 识别出的岗位名称，识别不出来就是空字符串
   "jdText": string,               // JD 正文本身（职责、要求等），去掉页面导航/页脚/无关广告文字，
@@ -39,11 +47,12 @@ JD 正文这三块内容。
   "confidence": "high" | "medium" | "low"  // 你对这次识别结果的把握程度
 }
 
-如果这段文本明显不是招聘信息（比如是篇新闻、是网站首页导航），
-isLikelyJobPosting 填 false，其他字段可以留空，不要编造。`;
+如果通篇没有找到任何一份完整的岗位详情（比如只有一堆职位列表摘要、没有点开
+任何一个的详情，或者这段文本明显不是招聘相关内容），isLikelyJobPosting 填
+false，其他字段留空，不要编造，也不要拿列表摘要硬凑一份"详情"出来。`;
 
   const userPrompt = buildUserPrompt({
-    "网页正文（已去除导航/广告等噪音）": input.pageText,
+    "网页抓取到的文本": input.pageText,
     "网页地址": input.url || "(未提供)",
   });
 

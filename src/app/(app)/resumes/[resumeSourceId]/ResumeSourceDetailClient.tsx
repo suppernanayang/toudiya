@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { Tag, TagVariant } from "@/components/ui/Tag";
-import { exportResumeVersionPdf } from "../pdf-actions";
+import { ResumePdfPreviewButton } from "@/components/resume-pdf/ResumePdfPreviewButton";
 import { generateFormattedVersion, saveResumeSourceVersion, updateResumeSourceInfo } from "../actions";
 
 export interface ResumeVersionSummary {
@@ -139,21 +139,7 @@ export function ResumeSourceDetailClient({ detail }: { detail: ResumeSourceDetai
                       下载
                     </a>
                   ) : null}
-                  <button
-                    type="button"
-                    disabled={isPending}
-                    onClick={() => {
-                      setError(null);
-                      startTransition(async () => {
-                        const result = await exportResumeVersionPdf(selectedVersion.id);
-                        if (!result.ok) setError(result.message);
-                        else window.open(result.downloadUrl, "_blank");
-                      });
-                    }}
-                    className="text-teal-dark text-xs whitespace-nowrap disabled:opacity-60"
-                  >
-                    导出 PDF
-                  </button>
+                  <ResumePdfPreviewButton versionId={selectedVersion.id} />
                 </div>
               ) : undefined
             }

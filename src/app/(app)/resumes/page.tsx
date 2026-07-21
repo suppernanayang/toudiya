@@ -6,7 +6,7 @@ import { Tag, TagVariant } from "@/components/ui/Tag";
 import Link from "next/link";
 import { ResumeIntakeTabs } from "./IntakeTabs";
 import { PersonalInfoForm } from "./PersonalInfoForm";
-import { ExportPdfButton } from "./ExportPdfButton";
+import { ResumePdfPreviewButton } from "@/components/resume-pdf/ResumePdfPreviewButton";
 
 const SOURCE_LABEL: Record<string, { label: string; variant: TagVariant }> = {
   original_upload: { label: "原始版", variant: "default" },
@@ -111,7 +111,7 @@ export default async function ResumesPage({
                         下载最新版本
                       </a>
                     ) : null}
-                    {latestVersion ? <ExportPdfButton versionId={latestVersion.id} /> : null}
+                    {latestVersion ? <ResumePdfPreviewButton versionId={latestVersion.id} /> : null}
                   </div>
                 </div>
               );

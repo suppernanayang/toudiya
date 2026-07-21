@@ -15,7 +15,7 @@ import {
   updateApplicationMessage,
   uploadFinalVersion,
 } from "./actions";
-import { exportResumeVersionPdf } from "../resumes/pdf-actions";
+import { ResumePdfPreviewButton } from "@/components/resume-pdf/ResumePdfPreviewButton";
 
 export interface QueueItem {
   jobId: string;
@@ -382,26 +382,7 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
                       </a>
                     ) : null}
                     {detail.currentVersion ? (
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => {
-                          const versionId = detail.currentVersion?.id;
-                          if (!versionId) return;
-                          setError(null);
-                          startTransition(async () => {
-                            const result = await exportResumeVersionPdf(versionId);
-                            if (!result.ok) {
-                              setError(result.message);
-                            } else {
-                              window.open(result.downloadUrl, "_blank");
-                            }
-                          });
-                        }}
-                        className="text-teal-dark text-xs whitespace-nowrap disabled:opacity-60"
-                      >
-                        导出 PDF
-                      </button>
+                      <ResumePdfPreviewButton versionId={detail.currentVersion.id} />
                     ) : null}
                   </div>
                 </div>

@@ -157,17 +157,38 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
   const [message, setMessage] = useState(detail.applicationMessage || "");
   const [fullscreen, setFullscreen] = useState(false);
   const [showBasePicker, setShowBasePicker] = useState(false);
+  const [showChangesPanel, setShowChangesPanel] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // detail 变化时（切换岗位）同步本地编辑状态
-  const [loadedJobId, setLoadedJobId] = useState(detail.jobId);
-  if (loadedJobId !== detail.jobId) {
-    setLoadedJobId(detail.jobId);
+  // 精确同步本地编辑状态：不是简单地"换岗位才同步"，而是分别跟踪
+  // "当前查看的版本 id" 和 "投递话术文字" 各自最后一次同步到的值——
+  // 哪个真的变了（生成新草稿、切换版本、上传文件、AI 生成话术……）就只刷新对应那部分，
+  // 不会因为你在别处点了别的操作，就把正在编辑但还没保存的内容意外冲掉。
+  const [lastSyncedJobId, setLastSyncedJobId] = useState(detail.jobId);
+  const [lastSyncedVersionId, setLastSyncedVersionId] = useState<string | null>(detail.currentVersion?.id ?? null);
+  const [lastSyncedMessage, setLastSyncedMessage] = useState(detail.applicationMessage ?? "");
+
+  if (detail.jobId !== lastSyncedJobId) {
+    setLastSyncedJobId(detail.jobId);
+    setLastSyncedVersionId(detail.currentVersion?.id ?? null);
+    setLastSyncedMessage(detail.applicationMessage ?? "");
     setEditText(detail.currentVersion?.contentText || "");
     setMessage(detail.applicationMessage || "");
     setError(null);
     setFullscreen(false);
     setShowBasePicker(false);
+    setShowChangesPanel(false);
+  } else {
+    const currentVersionId = detail.currentVersion?.id ?? null;
+    if (currentVersionId !== lastSyncedVersionId) {
+      setLastSyncedVersionId(currentVersionId);
+      setEditText(detail.currentVersion?.contentText || "");
+    }
+    const currentMessage = detail.applicationMessage ?? "";
+    if (currentMessage !== lastSyncedMessage) {
+      setLastSyncedMessage(currentMessage);
+      setMessage(detail.applicationMessage || "");
+    }
   }
 
   function run(action: () => Promise<{ ok: boolean; message?: string }>) {
@@ -314,11 +335,99 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
               </button>
             </div>
           </div>
+        </div>
 
-          {detail.aiDraftVersion ? (
-            <>
-              <SectionTitle title="修改说明" subtitle={`${detail.aiDraftVersion.changeSummary.length} 处关键调整`} />
-              <div className="grid gap-2.5">
+        <div
+          className={
+            fullscreen
+              ? "fixed inset-0 z-50 bg-white p-6 flex flex-col gap-3 overflow-hidden"
+              : "min-w-0 grid gap-3 content-start"
+          }
+        >
+          <div className="flex items-center justify-between gap-3 flex-shrink-0">
+            <SectionTitle title="简历预览与编辑" subtitle={fullscreen ? undefined : "保存会生成新的平台内编辑版"} />
+            <div className="flex items-center gap-3">
+              {fullscreen && detail.aiDraftVersion ? (
+                <button
+                  type="button"
+                  onClick={() => setShowChangesPanel((v) => !v)}
+                  className="text-teal-dark text-xs whitespace-nowrap"
+                >
+                  {showChangesPanel ? "隐藏修改说明" : "查看修改说明"}
+                </button>
+              ) : null}
+              <button type="button" onClick={() => setFullscreen((v) => !v)} className="text-teal-dark text-xs whitespace-nowrap">
+                {fullscreen ? "退出全屏" : "全屏编辑"}
+              </button>
+            </div>
+          </div>
+
+          <div className={fullscreen ? "flex-1 min-h-0 flex gap-4" : "grid gap-3"}>
+            <div className={fullscreen ? "flex-1 min-h-0 flex flex-col gap-3" : "grid gap-3"}>
+              <div
+                className={`min-w-0 border border-line rounded-lg bg-[#fbfcfc] overflow-hidden ${
+                  fullscreen ? "flex-1 min-h-0 flex flex-col" : ""
+                }`}
+              >
+                <div className="min-h-[42px] px-2.5 flex items-center justify-between gap-2 border-b border-line bg-white flex-shrink-0">
+                  <Tag variant="teal">{detail.currentVersion ? VERSION_TYPE_LABEL[detail.currentVersion.versionType] : "无版本"}</Tag>
+                  <div className="flex items-center gap-3">
+                    {detail.currentVersion?.filePath ? (
+                      <a
+                        href={`/api/files/${encodeURIComponent(detail.currentVersion.filePath)}`}
+                        className="text-teal-dark text-xs whitespace-nowrap"
+                      >
+                        下载当前版本
+                      </a>
+                    ) : null}
+                    {detail.currentVersion ? (
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => {
+                          const versionId = detail.currentVersion?.id;
+                          if (!versionId) return;
+                          setError(null);
+                          startTransition(async () => {
+                            const result = await exportResumeVersionPdf(versionId);
+                            if (!result.ok) {
+                              setError(result.message);
+                            } else {
+                              window.open(result.downloadUrl, "_blank");
+                            }
+                          });
+                        }}
+                        className="text-teal-dark text-xs whitespace-nowrap disabled:opacity-60"
+                      >
+                        导出 PDF
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                <textarea
+                  value={editText}
+                  onChange={(e) => setEditText(e.target.value)}
+                  className={`w-full min-w-0 p-4 leading-relaxed outline-none box-border ${
+                    fullscreen ? "flex-1 min-h-0" : "min-h-[280px]"
+                  }`}
+                  placeholder={detail.currentVersion ? "" : "还没有简历版本，先在左侧生成 AI 定制简历，或从简历库关联一份基准简历。"}
+                />
+              </div>
+              <div className="flex-shrink-0">
+                <button
+                  type="button"
+                  disabled={isPending || !editText.trim()}
+                  onClick={() => run(() => saveEditedVersion(detail.reviewItemId, detail.jobId, editText))}
+                  className="min-h-9 rounded-lg border border-line text-sm px-3 disabled:opacity-60"
+                >
+                  保存为平台内编辑版
+                </button>
+              </div>
+            </div>
+
+            {fullscreen && showChangesPanel && detail.aiDraftVersion ? (
+              <div className="w-80 flex-shrink-0 overflow-y-auto border-l border-line pl-4 grid gap-2.5 content-start">
+                <SectionTitle title="修改说明" subtitle={`${detail.aiDraftVersion.changeSummary.length} 处关键调整`} />
                 {detail.aiDraftVersion.changeSummary.map((c, idx) => (
                   <div key={idx} className="border-l-[3px] border-teal bg-[#f8fbfa] px-3 py-2.5 rounded-r-lg">
                     <strong className="block text-sm mb-1">{c.title}</strong>
@@ -338,72 +447,7 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
                   </div>
                 ))}
               </div>
-            </>
-          ) : null}
-        </div>
-
-        <div
-          className={
-            fullscreen
-              ? "fixed inset-0 z-50 bg-white p-6 grid gap-3 content-start overflow-auto"
-              : "min-w-0 grid gap-3 content-start"
-          }
-        >
-          <div className="flex items-center justify-between gap-3">
-            <SectionTitle title="简历预览与编辑" subtitle={fullscreen ? undefined : "保存会生成新的平台内编辑版"} />
-            <button type="button" onClick={() => setFullscreen((v) => !v)} className="text-teal-dark text-xs whitespace-nowrap">
-              {fullscreen ? "退出全屏" : "全屏编辑"}
-            </button>
-          </div>
-          <div className={`min-w-0 border border-line rounded-lg bg-[#fbfcfc] overflow-hidden ${fullscreen ? "flex-1 flex flex-col" : ""}`}>
-            <div className="min-h-[42px] px-2.5 flex items-center justify-between gap-2 border-b border-line bg-white">
-              <Tag variant="teal">{detail.currentVersion ? VERSION_TYPE_LABEL[detail.currentVersion.versionType] : "无版本"}</Tag>
-              <div className="flex items-center gap-3">
-                {detail.currentVersion?.filePath ? (
-                  <a href={`/api/files/${encodeURIComponent(detail.currentVersion.filePath)}`} className="text-teal-dark text-xs whitespace-nowrap">
-                    下载当前版本
-                  </a>
-                ) : null}
-                {detail.currentVersion ? (
-                  <button
-                    type="button"
-                    disabled={isPending}
-                    onClick={() => {
-                      const versionId = detail.currentVersion?.id;
-                      if (!versionId) return;
-                      setError(null);
-                      startTransition(async () => {
-                        const result = await exportResumeVersionPdf(versionId);
-                        if (!result.ok) {
-                          setError(result.message);
-                        } else {
-                          window.open(result.downloadUrl, "_blank");
-                        }
-                      });
-                    }}
-                    className="text-teal-dark text-xs whitespace-nowrap disabled:opacity-60"
-                  >
-                    导出 PDF
-                  </button>
-                ) : null}
-              </div>
-            </div>
-            <textarea
-              value={editText}
-              onChange={(e) => setEditText(e.target.value)}
-              className={`w-full min-w-0 p-4 leading-relaxed outline-none box-border ${fullscreen ? "flex-1" : "min-h-[280px]"}`}
-              placeholder={detail.currentVersion ? "" : "还没有简历版本，先在左侧生成 AI 定制简历，或从简历库关联一份基准简历。"}
-            />
-          </div>
-          <div>
-            <button
-              type="button"
-              disabled={isPending || !editText.trim()}
-              onClick={() => run(() => saveEditedVersion(detail.reviewItemId, detail.jobId, editText))}
-              className="min-h-9 rounded-lg border border-line text-sm px-3 disabled:opacity-60"
-            >
-              保存为平台内编辑版
-            </button>
+            ) : null}
           </div>
         </div>
       </div>

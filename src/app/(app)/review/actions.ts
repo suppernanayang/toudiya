@@ -7,7 +7,7 @@ import { DEFAULT_USER_ID } from "@/lib/current-user";
 import { saveResumeFile } from "@/lib/storage";
 import { parseResumeFile } from "@/lib/document-parser";
 import { customizeResumeForJob, generateApplicationMessage } from "@/lib/llm";
-import { buildExperienceSummaryText, ensureReviewItemForJob } from "@/lib/review";
+import { buildExperienceSummaryText, ensureReviewItemForJob, sortVersionsByQuality } from "@/lib/review";
 
 type ActionResult = { ok: true } | { ok: false; message: string };
 
@@ -241,7 +241,9 @@ export async function selectResumeVersion(
 
 /**
  * 手动更换这个岗位的"基准简历"，从简历库任选一份简历来源，
- * 用它最新的原始/方向版本作为新的基准版，并立刻切换为当前查看版本。
+ * 优先用它质量最好的版本（格式化版 > 方向简历 > 原始版——原始版是纯文本提取
+ * 结果，没有分区标题格式，直接拿去定制/预览/导出会报错），
+ * 作为新的基准版并立刻切换为当前查看版本。
  * 之前生成过的 AI 草稿、编辑版、上传版都不会被删除，只是不再是默认显示的那份。
  */
 export async function setBaseResumeVersion(
@@ -249,10 +251,11 @@ export async function setBaseResumeVersion(
   resumeSourceId: string,
   jobId: string,
 ): Promise<ActionResult> {
-  const latestVersion = await prisma.resumeVersion.findFirst({
-    where: { resumeSourceId, versionType: { in: ["original", "direction"] } },
+  const candidates = await prisma.resumeVersion.findMany({
+    where: { resumeSourceId, versionType: { in: ["formatted", "direction", "original"] } },
     orderBy: { createdAt: "desc" },
   });
+  const latestVersion = sortVersionsByQuality(candidates)[0];
 
   if (!latestVersion) {
     return fail("这份简历来源还没有可用的版本。");

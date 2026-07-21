@@ -4,6 +4,30 @@ import { EXPERIENCE_CATEGORIES } from "@/lib/experience-categories";
 
 const DEFAULT_SESSION_NAME = "常规审核";
 
+// 简历版本"质量"优先级：格式化版 > 方向简历 > 原始版。
+// 原始版是从上传文件里直接提取出来的纯文本，没有"## 分区标题"这套排版约定，
+// 直接拿去定制/预览/导出都会因为格式不对被拒绝，只应该在没有更好版本时才退回它。
+const BASE_VERSION_TYPE_PRIORITY: Record<string, number> = {
+  formatted: 0,
+  direction: 1,
+  original: 2,
+};
+
+/**
+ * 把候选简历版本按质量优先排序（同类型内按创建时间新的排前面）。
+ * "挑基准简历版本"这件事在这个文件和 review/actions.ts 里出现了好几处，
+ * 之前各自写了一份逻辑，有的甚至漏掉了"formatted"类型，
+ * 统一用这个函数，避免同一个 bug 改了一处漏了另一处。
+ */
+export function sortVersionsByQuality<T extends { versionType: string; createdAt: Date }>(versions: T[]): T[] {
+  return [...versions].sort((a, b) => {
+    const pa = BASE_VERSION_TYPE_PRIORITY[a.versionType] ?? 99;
+    const pb = BASE_VERSION_TYPE_PRIORITY[b.versionType] ?? 99;
+    if (pa !== pb) return pa - pb;
+    return b.createdAt.getTime() - a.createdAt.getTime();
+  });
+}
+
 export async function ensureDefaultReviewSession() {
   const existing = await prisma.reviewSession.findFirst({
     where: { userId: DEFAULT_USER_ID, status: "in_progress" },
@@ -28,7 +52,6 @@ async function pickBaseResumeVersionId(roleType: string | null | undefined) {
       resumeVersions: {
         where: { versionType: { in: ["formatted", "direction", "original"] } },
         orderBy: { createdAt: "desc" },
-        take: 1,
       },
     },
   });
@@ -48,7 +71,7 @@ async function pickBaseResumeVersionId(roleType: string | null | undefined) {
     sources.find((s) => s.isDefault) ||
     sources[0];
 
-  return picked?.resumeVersions[0]?.id ?? null;
+  return sortVersionsByQuality(picked?.resumeVersions ?? [])[0]?.id ?? null;
 }
 
 export async function ensureReviewItemForJob(jobId: string) {
@@ -159,7 +182,7 @@ export async function getReviewJobDetail(jobId: string) {
     ...jobScopedVersions,
   ];
 
-  // 供"更换基准简历"选择器使用：每份简历来源 + 它最新的一个原始/方向版本。
+  // 供"更换基准简历"选择器使用：每份简历来源 + 它质量最好的一个版本。
   const resumeSourceOptions = await prisma.resumeSource.findMany({
     where: { userId: DEFAULT_USER_ID },
     orderBy: { updatedAt: "desc" },
@@ -167,7 +190,6 @@ export async function getReviewJobDetail(jobId: string) {
       resumeVersions: {
         where: { versionType: { in: ["formatted", "direction", "original"] } },
         orderBy: { createdAt: "desc" },
-        take: 1,
       },
     },
   });
@@ -181,13 +203,14 @@ export async function getReviewJobDetail(jobId: string) {
     finalVersion,
     allVersions,
     resumeSourceOptions: resumeSourceOptions
-      .filter((s) => s.resumeVersions[0])
-      .map((s) => ({
+      .map((s) => ({ source: s, best: sortVersionsByQuality(s.resumeVersions)[0] }))
+      .filter((s) => s.best)
+      .map(({ source: s, best }) => ({
         resumeSourceId: s.id,
         name: s.name,
         targetRoleType: s.targetRoleType,
         isDefault: s.isDefault,
-        latestVersionId: s.resumeVersions[0].id,
+        latestVersionId: best.id,
       })),
   };
 }

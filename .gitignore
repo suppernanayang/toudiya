@@ -39,6 +39,7 @@ yarn-error.log*
 
 # local file storage (保留目录结构，不提交真实文件)
 /storage/**/*
+!/storage/**/
 !/storage/**/.gitkeep
 
 # vercel

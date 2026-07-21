@@ -84,6 +84,7 @@ const DECISION_LABEL: Record<string, { label: string; variant: TagVariant }> = {
 const VERSION_TYPE_LABEL: Record<string, string> = {
   original: "原始版",
   direction: "方向简历",
+  formatted: "格式化版",
   ai_draft: "AI 草稿",
   platform_edited: "平台内编辑版",
   user_uploaded_final: "用户上传最终版",

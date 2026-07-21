@@ -10,7 +10,8 @@ export type ResumeFileFolder =
   | "ai-drafts"
   | "edited"
   | "uploaded-finals"
-  | "submitted";
+  | "submitted"
+  | "formatted";
 
 const RESUME_FOLDER_MAP: Record<ResumeFileFolder, string> = {
   originals: "resumes/originals",
@@ -18,6 +19,7 @@ const RESUME_FOLDER_MAP: Record<ResumeFileFolder, string> = {
   edited: "resumes/edited",
   "uploaded-finals": "resumes/uploaded-finals",
   submitted: "resumes/submitted",
+  formatted: "resumes/formatted",
 };
 
 function sanitizeSegment(segment: string): string {

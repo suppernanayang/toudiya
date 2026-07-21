@@ -3,6 +3,7 @@ import { DEFAULT_USER_ID } from "@/lib/current-user";
 import { PageShell } from "@/components/layout/PageShell";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { Tag, TagVariant } from "@/components/ui/Tag";
+import Link from "next/link";
 import { ResumeIntakeTabs } from "./IntakeTabs";
 import { PersonalInfoForm } from "./PersonalInfoForm";
 import { ExportPdfButton } from "./ExportPdfButton";
@@ -17,6 +18,7 @@ const SOURCE_LABEL: Record<string, { label: string; variant: TagVariant }> = {
 const VERSION_LABEL: Record<string, { label: string; variant: TagVariant }> = {
   original: { label: "原始版", variant: "default" },
   direction: { label: "方向简历", variant: "blue" },
+  formatted: { label: "格式化版", variant: "teal" },
   ai_draft: { label: "AI 草稿", variant: "teal" },
   platform_edited: { label: "平台内编辑版", variant: "amber" },
   user_uploaded_final: { label: "用户上传最终版", variant: "green" },
@@ -81,26 +83,28 @@ export default async function ResumesPage({
               const boundJobs = new Set(source.resumeVersions.map((v) => v.jobId).filter(Boolean)).size;
               return (
                 <div key={source.id} className="border border-line rounded-lg bg-white p-3.5 grid gap-2.5">
-                  <div className="flex items-start justify-between gap-2">
-                    <strong className="text-sm">{source.name}</strong>
-                    {source.isDefault ? <Tag variant="blue">方向默认</Tag> : <Tag variant={sourceInfo.variant}>{sourceInfo.label}</Tag>}
-                  </div>
-                  <div className="text-muted text-xs">
-                    {source.targetRoleType ? `方向：${source.targetRoleType} · ` : ""}
-                    {source._count.experienceItems} 条经历 · 关联 {boundJobs} 个岗位
-                  </div>
-                  {latestVersion ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {source.resumeVersions.slice(0, 4).map((v) => {
-                        const info = VERSION_LABEL[v.versionType] || { label: v.versionType, variant: "default" as TagVariant };
-                        return (
-                          <Tag key={v.id} variant={info.variant}>
-                            {info.label}
-                          </Tag>
-                        );
-                      })}
+                  <Link href={`/resumes/${source.id}`} className="grid gap-2.5">
+                    <div className="flex items-start justify-between gap-2">
+                      <strong className="text-sm">{source.name}</strong>
+                      {source.isDefault ? <Tag variant="blue">方向默认</Tag> : <Tag variant={sourceInfo.variant}>{sourceInfo.label}</Tag>}
                     </div>
-                  ) : null}
+                    <div className="text-muted text-xs">
+                      {source.targetRoleType ? `方向：${source.targetRoleType} · ` : ""}
+                      {source._count.experienceItems} 条经历 · 关联 {boundJobs} 个岗位
+                    </div>
+                    {latestVersion ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {source.resumeVersions.slice(0, 4).map((v) => {
+                          const info = VERSION_LABEL[v.versionType] || { label: v.versionType, variant: "default" as TagVariant };
+                          return (
+                            <Tag key={v.id} variant={info.variant}>
+                              {info.label}
+                            </Tag>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+                  </Link>
                   <div className="flex gap-3 text-xs items-start">
                     {latestVersion?.filePath ? (
                       <a href={`/api/files/${encodeURIComponent(latestVersion.filePath)}`} className="text-teal-dark">

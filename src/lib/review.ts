@@ -26,7 +26,7 @@ async function pickBaseResumeVersionId(roleType: string | null | undefined) {
     orderBy: { updatedAt: "desc" },
     include: {
       resumeVersions: {
-        where: { versionType: { in: ["original", "direction"] } },
+        where: { versionType: { in: ["formatted", "direction", "original"] } },
         orderBy: { createdAt: "desc" },
         take: 1,
       },
@@ -165,7 +165,7 @@ export async function getReviewJobDetail(jobId: string) {
     orderBy: { updatedAt: "desc" },
     include: {
       resumeVersions: {
-        where: { versionType: { in: ["original", "direction"] } },
+        where: { versionType: { in: ["formatted", "direction", "original"] } },
         orderBy: { createdAt: "desc" },
         take: 1,
       },

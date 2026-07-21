@@ -9,6 +9,7 @@ import { saveResumeFile, saveAttachmentFile } from "@/lib/storage";
 import { parseResumeFile } from "@/lib/document-parser";
 import { extractResumeExperience } from "@/lib/llm";
 import { saveExtractedExperienceItem } from "@/lib/experience";
+import { buildFormattedResumeContent } from "@/lib/resume-formatting";
 
 type ActionResult = { ok: true } | { ok: false; message: string };
 
@@ -102,6 +103,55 @@ async function unsetOtherDefaults(targetRoleType: string | null, exceptId?: stri
   });
 }
 
+/**
+ * 从经历库里已经结构化好的数据，拼出一份格式化版本（不调用 AI，纯程序生成），
+ * 保证符合 PDF 导出所需的排版规范。上传/粘贴简历提取经历成功后会自动调用一次，
+ * 也可以在简历详情页手动点"重新生成"再触发一次（比如经历库内容后来改过）。
+ */
+export async function generateFormattedVersion(resumeSourceId: string): Promise<ActionResult> {
+  const resumeSource = await prisma.resumeSource.findUnique({ where: { id: resumeSourceId } });
+  if (!resumeSource) return { ok: false, message: "找不到这份简历来源。" };
+
+  const items = await prisma.experienceItem.findMany({
+    where: { resumeSourceId },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const contentText = buildFormattedResumeContent(items, resumeSource.parsedText);
+  if (!contentText.trim()) {
+    return { ok: false, message: "这份简历还没有可用的经历数据，无法生成格式化版本。" };
+  }
+
+  const versionId = randomUUID();
+  const saved = await saveResumeFile({
+    folder: "formatted",
+    userId: DEFAULT_USER_ID,
+    versionId,
+    versionType: "formatted",
+    ext: "txt",
+    content: contentText,
+  });
+
+  await prisma.resumeVersion.create({
+    data: {
+      id: versionId,
+      userId: DEFAULT_USER_ID,
+      resumeSourceId,
+      versionName: `${resumeSource.name} · 格式化版`,
+      versionType: "formatted",
+      status: "candidate",
+      filePath: saved.relativePath,
+      fileFormat: "txt",
+      contentText,
+      createdBy: "system",
+    },
+  });
+
+  revalidatePath("/resumes");
+  revalidatePath(`/resumes/${resumeSourceId}`);
+  return { ok: true };
+}
+
 export async function createResumeFromText(formData: FormData) {
   const name = String(formData.get("name") || "").trim() || "未命名简历";
   const targetRoleType = String(formData.get("targetRoleType") || "").trim() || null;
@@ -153,9 +203,14 @@ export async function createResumeFromText(formData: FormData) {
 
   const extraction = await extractAndSaveExperience(resumeSource.id, resumeText);
 
-  const warning = extraction.ok
-    ? undefined
-    : `简历已保存，但经历提取失败：${extraction.message}`;
+  let warning = extraction.ok ? undefined : `简历已保存，但经历提取失败：${extraction.message}`;
+
+  if (extraction.ok) {
+    const formatted = await generateFormattedVersion(resumeSource.id);
+    if (!formatted.ok) {
+      warning = `简历已保存，经历提取成功，但自动生成格式化版本失败：${formatted.message}`;
+    }
+  }
 
   redirect(`/resumes${warning ? `?warning=${encodeURIComponent(warning)}` : "?success=1"}`);
 }
@@ -228,8 +283,81 @@ export async function uploadResumeFile(formData: FormData) {
       warning = warning
         ? `${warning}；经历提取也失败：${extraction.message}`
         : `经历提取失败：${extraction.message}`;
+    } else {
+      const formatted = await generateFormattedVersion(resumeSource.id);
+      if (!formatted.ok) {
+        warning = warning ? `${warning}；${formatted.message}` : formatted.message;
+      }
     }
   }
 
   redirect(`/resumes${warning ? `?warning=${encodeURIComponent(warning)}` : "?success=1"}`);
+}
+
+export async function updateResumeSourceInfo(
+  resumeSourceId: string,
+  data: { name: string; targetRoleType: string; isDefault: boolean },
+): Promise<ActionResult> {
+  if (!data.name.trim()) return { ok: false, message: "简历名称不能为空。" };
+
+  const resumeSource = await prisma.resumeSource.findUnique({ where: { id: resumeSourceId } });
+  if (!resumeSource) return { ok: false, message: "找不到这份简历来源。" };
+
+  const targetRoleType = data.targetRoleType.trim() || null;
+
+  if (data.isDefault) await unsetOtherDefaults(targetRoleType, resumeSourceId);
+
+  await prisma.resumeSource.update({
+    where: { id: resumeSourceId },
+    data: {
+      name: data.name.trim(),
+      targetRoleType,
+      tags: targetRoleType ? [targetRoleType] : [],
+      isDefault: data.isDefault,
+    },
+  });
+
+  revalidatePath("/resumes");
+  revalidatePath(`/resumes/${resumeSourceId}`);
+  return { ok: true };
+}
+
+/**
+ * 在简历详情页里编辑某个版本的正文并保存——生成一条新的"格式化版"版本，
+ * 不覆盖旧版本，跟系统"全部留痕"的一贯风格保持一致。
+ */
+export async function saveResumeSourceVersion(resumeSourceId: string, contentText: string): Promise<ActionResult> {
+  if (!contentText.trim()) return { ok: false, message: "简历内容不能为空。" };
+
+  const resumeSource = await prisma.resumeSource.findUnique({ where: { id: resumeSourceId } });
+  if (!resumeSource) return { ok: false, message: "找不到这份简历来源。" };
+
+  const versionId = randomUUID();
+  const saved = await saveResumeFile({
+    folder: "formatted",
+    userId: DEFAULT_USER_ID,
+    versionId,
+    versionType: "formatted",
+    ext: "txt",
+    content: contentText,
+  });
+
+  await prisma.resumeVersion.create({
+    data: {
+      id: versionId,
+      userId: DEFAULT_USER_ID,
+      resumeSourceId,
+      versionName: `${resumeSource.name} · 格式化版（手动编辑）`,
+      versionType: "formatted",
+      status: "candidate",
+      filePath: saved.relativePath,
+      fileFormat: "txt",
+      contentText,
+      createdBy: "user",
+    },
+  });
+
+  revalidatePath("/resumes");
+  revalidatePath(`/resumes/${resumeSourceId}`);
+  return { ok: true };
 }

@@ -38,6 +38,7 @@ async function main() {
       taskModelMap: {
         job_analysis: { provider: "deepseek", model: "deepseek-chat" },
         resume_customization: { provider: "deepseek", model: "deepseek-chat" },
+        resume_reformatting: { provider: "deepseek", model: "deepseek-chat" },
         application_message: { provider: "deepseek", model: "deepseek-chat" },
         interview_preparation: { provider: "deepseek", model: "deepseek-chat" },
         fact_review: { provider: "deepseek", model: "deepseek-chat" },

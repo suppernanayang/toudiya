@@ -7,6 +7,7 @@ export type LlmProviderName = "deepseek" | "openai";
 export type LlmTaskName =
   | "job_analysis"
   | "resume_customization"
+  | "resume_reformatting"
   | "application_message"
   | "interview_preparation"
   | "fact_review"

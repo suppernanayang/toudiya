@@ -7,9 +7,8 @@ import { prisma } from "@/lib/db";
 import { DEFAULT_USER_ID } from "@/lib/current-user";
 import { saveResumeFile, saveAttachmentFile } from "@/lib/storage";
 import { parseResumeFile } from "@/lib/document-parser";
-import { extractResumeExperience } from "@/lib/llm";
+import { extractResumeExperience, reformatResumeContent } from "@/lib/llm";
 import { saveExtractedExperienceItem } from "@/lib/experience";
-import { buildFormattedResumeContent } from "@/lib/resume-formatting";
 
 type ActionResult = { ok: true } | { ok: false; message: string };
 
@@ -104,22 +103,35 @@ async function unsetOtherDefaults(targetRoleType: string | null, exceptId?: stri
 }
 
 /**
- * 从经历库里已经结构化好的数据，拼出一份格式化版本（不调用 AI，纯程序生成），
- * 保证符合 PDF 导出所需的排版规范。上传/粘贴简历提取经历成功后会自动调用一次，
- * 也可以在简历详情页手动点"重新生成"再触发一次（比如经历库内容后来改过）。
+ * 生成一份"格式化版"——用 AI 把这份简历的原始文本重新整理成符合导出规范的排版，
+ * 明确要求"只重排版、不总结、不删减"，保证内容详细程度跟原文一致。
+ * 直接基于这份简历自己的原始文本，不依赖经历库（经历库的摘要是压缩过的，
+ * 也可能因为跨简历去重被移到别的简历名下，两者都会导致内容不完整）。
+ * 上传/粘贴简历成功后会自动调用一次，也可以在简历详情页手动点"重新生成"。
  */
 export async function generateFormattedVersion(resumeSourceId: string): Promise<ActionResult> {
   const resumeSource = await prisma.resumeSource.findUnique({ where: { id: resumeSourceId } });
   if (!resumeSource) return { ok: false, message: "找不到这份简历来源。" };
 
-  const items = await prisma.experienceItem.findMany({
-    where: { resumeSourceId },
-    orderBy: { createdAt: "asc" },
-  });
+  const rawText = (resumeSource.parsedText || "").trim();
+  if (!rawText) {
+    return { ok: false, message: "这份简历没有可用的原始文本，无法生成格式化版本。" };
+  }
 
-  const contentText = buildFormattedResumeContent(items, resumeSource.parsedText);
+  let contentText: string;
+  try {
+    const { envelope } = await reformatResumeContent(rawText);
+    contentText = envelope.result.contentText;
+  } catch (error) {
+    console.error("[resumes] 生成格式化版本失败：", error);
+    return {
+      ok: false,
+      message: `生成格式化版本失败：${error instanceof Error ? error.message : "未知错误"}`,
+    };
+  }
+
   if (!contentText.trim()) {
-    return { ok: false, message: "这份简历还没有可用的经历数据，无法生成格式化版本。" };
+    return { ok: false, message: "AI 没有返回可用的格式化内容，请稍后重试。" };
   }
 
   const versionId = randomUUID();
@@ -143,7 +155,7 @@ export async function generateFormattedVersion(resumeSourceId: string): Promise<
       filePath: saved.relativePath,
       fileFormat: "txt",
       contentText,
-      createdBy: "system",
+      createdBy: "ai",
     },
   });
 

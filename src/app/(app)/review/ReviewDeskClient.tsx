@@ -9,6 +9,8 @@ import {
   generateAiDraft,
   generateMessageDraft,
   saveEditedVersion,
+  selectResumeVersion,
+  setBaseResumeVersion,
   setFinalVersion,
   updateApplicationMessage,
   uploadFinalVersion,
@@ -40,6 +42,14 @@ interface AiDraftVersionSummary extends VersionSummary {
   pendingConfirmations: string[];
 }
 
+export interface ResumeSourceOption {
+  resumeSourceId: string;
+  name: string;
+  targetRoleType: string | null;
+  isDefault: boolean;
+  latestVersionId: string;
+}
+
 export interface ReviewDetail {
   jobId: string;
   company: string;
@@ -59,6 +69,8 @@ export interface ReviewDetail {
   aiDraftVersion: AiDraftVersionSummary | null;
   currentVersion: VersionSummary | null;
   finalVersion: VersionSummary | null;
+  allVersions: VersionSummary[];
+  resumeSourceOptions: ResumeSourceOption[];
 }
 
 const DECISION_LABEL: Record<string, { label: string; variant: TagVariant }> = {
@@ -143,6 +155,8 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
   const [error, setError] = useState<string | null>(null);
   const [editText, setEditText] = useState(detail.currentVersion?.contentText || "");
   const [message, setMessage] = useState(detail.applicationMessage || "");
+  const [fullscreen, setFullscreen] = useState(false);
+  const [showBasePicker, setShowBasePicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // detail 变化时（切换岗位）同步本地编辑状态
@@ -152,6 +166,8 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
     setEditText(detail.currentVersion?.contentText || "");
     setMessage(detail.applicationMessage || "");
     setError(null);
+    setFullscreen(false);
+    setShowBasePicker(false);
   }
 
   function run(action: () => Promise<{ ok: boolean; message?: string }>) {
@@ -166,10 +182,10 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
     });
   }
 
-  const versions = [
-    detail.recommendedVersion ? { ...detail.recommendedVersion, role: "基准" } : null,
-    detail.aiDraftVersion ? { ...detail.aiDraftVersion, role: null } : null,
-  ].filter(Boolean) as (VersionSummary & { role: string | null })[];
+  const versions = detail.allVersions.map((v) => ({
+    ...v,
+    role: v.id === detail.recommendedVersion?.id ? "基准" : null,
+  }));
 
   const decisionInfo = DECISION_LABEL[detail.decision] || DECISION_LABEL.undecided;
 
@@ -198,7 +214,51 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
 
       <div className="p-4.5 grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div className="min-w-0 grid gap-3 content-start">
-          <SectionTitle title="简历版本" subtitle={detail.finalResumeVersionId ? "已设最终版" : "最终版未确认"} />
+          <div className="flex items-center justify-between gap-3">
+            <SectionTitle title="简历版本" subtitle={detail.finalResumeVersionId ? "已设最终版" : "最终版未确认"} />
+            <button
+              type="button"
+              onClick={() => setShowBasePicker((v) => !v)}
+              className="text-teal-dark text-xs whitespace-nowrap"
+            >
+              更换基准简历
+            </button>
+          </div>
+          {showBasePicker ? (
+            <div className="border border-line rounded-lg p-3 grid gap-2 bg-[#fbfdfc]">
+              <p className="m-0 text-muted text-xs leading-relaxed">
+                从简历库里选一份作为这个岗位的基准简历（不会删掉已经生成的其他版本）：
+              </p>
+              {detail.resumeSourceOptions.length === 0 ? (
+                <p className="m-0 text-muted text-xs">简历库还没有简历，先去简历库上传或粘贴一份。</p>
+              ) : (
+                <div className="grid gap-1.5">
+                  {detail.resumeSourceOptions.map((option) => (
+                    <button
+                      key={option.resumeSourceId}
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        setShowBasePicker(false);
+                        run(() => setBaseResumeVersion(detail.reviewItemId, option.resumeSourceId, detail.jobId));
+                      }}
+                      className={`text-left border rounded-lg px-2.5 py-2 text-xs flex items-center justify-between gap-2 disabled:opacity-60 ${
+                        detail.recommendedVersion?.id === option.latestVersionId
+                          ? "border-teal bg-[#f0faf6]"
+                          : "border-line bg-white"
+                      }`}
+                    >
+                      <span>
+                        {option.name}
+                        {option.targetRoleType ? `（${option.targetRoleType}）` : ""}
+                      </span>
+                      {option.isDefault ? <Tag variant="blue">方向默认</Tag> : null}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : null}
           <div className="grid gap-2.5">
             {versions.map((v) => (
               <VersionCard
@@ -206,6 +266,8 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
                 version={v}
                 active={detail.currentSelectedResumeVersionId === v.id}
                 isFinal={detail.finalResumeVersionId === v.id}
+                disabled={isPending}
+                onClick={() => run(() => selectResumeVersion(detail.reviewItemId, v.id, detail.jobId))}
               />
             ))}
             {!detail.aiDraftVersion ? (
@@ -280,9 +342,20 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
           ) : null}
         </div>
 
-        <div className="min-w-0 grid gap-3 content-start">
-          <SectionTitle title="简历预览与编辑" subtitle="保存会生成新的平台内编辑版" />
-          <div className="min-w-0 border border-line rounded-lg bg-[#fbfcfc] overflow-hidden">
+        <div
+          className={
+            fullscreen
+              ? "fixed inset-0 z-50 bg-white p-6 grid gap-3 content-start overflow-auto"
+              : "min-w-0 grid gap-3 content-start"
+          }
+        >
+          <div className="flex items-center justify-between gap-3">
+            <SectionTitle title="简历预览与编辑" subtitle={fullscreen ? undefined : "保存会生成新的平台内编辑版"} />
+            <button type="button" onClick={() => setFullscreen((v) => !v)} className="text-teal-dark text-xs whitespace-nowrap">
+              {fullscreen ? "退出全屏" : "全屏编辑"}
+            </button>
+          </div>
+          <div className={`min-w-0 border border-line rounded-lg bg-[#fbfcfc] overflow-hidden ${fullscreen ? "flex-1 flex flex-col" : ""}`}>
             <div className="min-h-[42px] px-2.5 flex items-center justify-between gap-2 border-b border-line bg-white">
               <Tag variant="teal">{detail.currentVersion ? VERSION_TYPE_LABEL[detail.currentVersion.versionType] : "无版本"}</Tag>
               <div className="flex items-center gap-3">
@@ -318,7 +391,7 @@ function ReviewDetailPanel({ detail }: { detail: ReviewDetail }) {
             <textarea
               value={editText}
               onChange={(e) => setEditText(e.target.value)}
-              className="w-full min-w-0 min-h-[280px] p-4 leading-relaxed outline-none box-border"
+              className={`w-full min-w-0 p-4 leading-relaxed outline-none box-border ${fullscreen ? "flex-1" : "min-h-[280px]"}`}
               placeholder={detail.currentVersion ? "" : "还没有简历版本，先在左侧生成 AI 定制简历，或从简历库关联一份基准简历。"}
             />
           </div>
@@ -414,22 +487,42 @@ function VersionCard({
   version,
   active,
   isFinal,
+  disabled,
+  onClick,
 }: {
   version: VersionSummary & { role: string | null };
   active: boolean;
   isFinal: boolean;
+  disabled?: boolean;
+  onClick?: () => void;
 }) {
+  const variant: TagVariant =
+    version.versionType === "ai_draft"
+      ? "teal"
+      : version.versionType === "platform_edited"
+        ? "amber"
+        : version.versionType === "user_uploaded_final"
+          ? "green"
+          : "default";
+
   return (
-    <div className={`border rounded-lg p-3 grid gap-2 bg-white ${active ? "border-teal bg-[#f0faf6]" : "border-line"}`}>
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`text-left border rounded-lg p-3 grid gap-2 bg-white w-full disabled:opacity-70 disabled:cursor-not-allowed ${
+        active ? "border-teal bg-[#f0faf6]" : "border-line hover:border-soft"
+      }`}
+    >
       <div className="flex items-center justify-between gap-2">
         <strong className="text-sm [overflow-wrap:anywhere]">{version.versionName}</strong>
         <span className="text-muted text-xs whitespace-nowrap">{version.role || (active ? "当前" : "")}</span>
       </div>
       <div className="flex flex-wrap gap-1.5">
-        <Tag variant={version.versionType === "ai_draft" ? "teal" : "default"}>{VERSION_TYPE_LABEL[version.versionType]}</Tag>
+        <Tag variant={variant}>{VERSION_TYPE_LABEL[version.versionType]}</Tag>
         {isFinal ? <Tag variant="green">最终投递版</Tag> : null}
       </div>
-    </div>
+    </button>
   );
 }
 

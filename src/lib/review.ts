@@ -132,12 +132,9 @@ export async function getReviewJobDetail(jobId: string) {
 
   const reviewItem = await ensureReviewItemForJob(jobId);
 
-  const [recommendedVersion, aiDraftVersion, currentVersion, finalVersion] = await Promise.all([
+  const [recommendedVersion, currentVersion, finalVersion, jobScopedVersions] = await Promise.all([
     reviewItem.recommendedResumeVersionId
       ? prisma.resumeVersion.findUnique({ where: { id: reviewItem.recommendedResumeVersionId } })
-      : null,
-    reviewItem.aiDraftResumeVersionId
-      ? prisma.resumeVersion.findUnique({ where: { id: reviewItem.aiDraftResumeVersionId } })
       : null,
     reviewItem.currentSelectedResumeVersionId
       ? prisma.resumeVersion.findUnique({ where: { id: reviewItem.currentSelectedResumeVersionId } })
@@ -145,7 +142,52 @@ export async function getReviewJobDetail(jobId: string) {
     reviewItem.finalResumeVersionId
       ? prisma.resumeVersion.findUnique({ where: { id: reviewItem.finalResumeVersionId } })
       : null,
+    // 这个岗位名下产生的所有版本：AI 草稿、平台内编辑版、用户上传最终版都是 jobId = 这个岗位。
+    prisma.resumeVersion.findMany({
+      where: { userId: DEFAULT_USER_ID, jobId },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
-  return { job, reviewItem, recommendedVersion, aiDraftVersion, currentVersion, finalVersion };
+  const aiDraftVersion = jobScopedVersions.find((v) => v.id === reviewItem.aiDraftResumeVersionId) || null;
+
+  // 基准版通常不属于任何岗位（jobId 为空，来自简历库），单独拼进列表最前面。
+  const allVersions = [
+    ...(recommendedVersion && !jobScopedVersions.some((v) => v.id === recommendedVersion.id)
+      ? [recommendedVersion]
+      : []),
+    ...jobScopedVersions,
+  ];
+
+  // 供"更换基准简历"选择器使用：每份简历来源 + 它最新的一个原始/方向版本。
+  const resumeSourceOptions = await prisma.resumeSource.findMany({
+    where: { userId: DEFAULT_USER_ID },
+    orderBy: { updatedAt: "desc" },
+    include: {
+      resumeVersions: {
+        where: { versionType: { in: ["original", "direction"] } },
+        orderBy: { createdAt: "desc" },
+        take: 1,
+      },
+    },
+  });
+
+  return {
+    job,
+    reviewItem,
+    recommendedVersion,
+    aiDraftVersion,
+    currentVersion,
+    finalVersion,
+    allVersions,
+    resumeSourceOptions: resumeSourceOptions
+      .filter((s) => s.resumeVersions[0])
+      .map((s) => ({
+        resumeSourceId: s.id,
+        name: s.name,
+        targetRoleType: s.targetRoleType,
+        isDefault: s.isDefault,
+        latestVersionId: s.resumeVersions[0].id,
+      })),
+  };
 }

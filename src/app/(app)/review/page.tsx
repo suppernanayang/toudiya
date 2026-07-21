@@ -81,6 +81,14 @@ export default async function ReviewPage({
               filePath: raw.finalVersion.filePath,
             }
           : null,
+        allVersions: raw.allVersions.map((v) => ({
+          id: v.id,
+          versionName: v.versionName,
+          versionType: v.versionType,
+          contentText: v.contentText,
+          filePath: v.filePath,
+        })),
+        resumeSourceOptions: raw.resumeSourceOptions,
       };
     }
   }

@@ -222,6 +222,54 @@ export async function setFinalVersion(reviewItemId: string, versionId: string, j
   return { ok: true };
 }
 
+/**
+ * 点击左侧某张版本卡片时调用：只是切换"当前正在查看/编辑的版本"，
+ * 不会影响"最终投递版"（那个必须用户显式点「设为最终投递版」才会改）。
+ */
+export async function selectResumeVersion(
+  reviewItemId: string,
+  versionId: string,
+  jobId: string,
+): Promise<ActionResult> {
+  await prisma.reviewItem.update({
+    where: { id: reviewItemId },
+    data: { currentSelectedResumeVersionId: versionId },
+  });
+  await refreshReview(jobId);
+  return { ok: true };
+}
+
+/**
+ * 手动更换这个岗位的"基准简历"，从简历库任选一份简历来源，
+ * 用它最新的原始/方向版本作为新的基准版，并立刻切换为当前查看版本。
+ * 之前生成过的 AI 草稿、编辑版、上传版都不会被删除，只是不再是默认显示的那份。
+ */
+export async function setBaseResumeVersion(
+  reviewItemId: string,
+  resumeSourceId: string,
+  jobId: string,
+): Promise<ActionResult> {
+  const latestVersion = await prisma.resumeVersion.findFirst({
+    where: { resumeSourceId, versionType: { in: ["original", "direction"] } },
+    orderBy: { createdAt: "desc" },
+  });
+
+  if (!latestVersion) {
+    return fail("这份简历来源还没有可用的版本。");
+  }
+
+  await prisma.reviewItem.update({
+    where: { id: reviewItemId },
+    data: {
+      recommendedResumeVersionId: latestVersion.id,
+      currentSelectedResumeVersionId: latestVersion.id,
+    },
+  });
+
+  await refreshReview(jobId);
+  return { ok: true };
+}
+
 export async function updateApplicationMessage(
   reviewItemId: string,
   message: string,

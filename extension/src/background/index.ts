@@ -40,8 +40,23 @@ async function handleMessage(message: ExtensionMessage): Promise<ExtensionRespon
       if (!tab?.id) {
         return { ok: false, message: "找不到当前标签页。" };
       }
-      const result = await chrome.tabs.sendMessage(tab.id, { type: "EXTRACT_JD_IN_TAB" } satisfies ExtensionMessage);
-      return result as ExtensionResponse;
+      try {
+        const result = await chrome.tabs.sendMessage(tab.id, { type: "EXTRACT_JD_IN_TAB" } satisfies ExtensionMessage);
+        return result as ExtensionResponse;
+      } catch (error) {
+        const rawMessage = error instanceof Error ? error.message : String(error);
+        // 这个报错是 Chrome 的通用提示，真正原因几乎总是"这个页面是在装/更新插件之前
+        // 就已经打开的，浏览器没有给旧标签页注入新脚本"——刷新一下页面就好了，
+        // 不是插件本身坏了，翻译成人话，别让用户对着一句英文 API 报错发愁。
+        if (rawMessage.includes("Receiving end does not exist") || rawMessage.includes("Could not establish connection")) {
+          return {
+            ok: false,
+            message:
+              "这个页面是在你安装/更新插件之前就打开的，浏览器还没给它注入最新的插件脚本。刷新一下这个页面（F5），再点一次试试。",
+          };
+        }
+        return { ok: false, message: rawMessage };
+      }
     }
 
     case "AI_EXTRACT_JOB_FROM_TEXT": {
